@@ -5,11 +5,18 @@ node_modules/
 .next/
 out/
 dist/
+build/
 
 # Environment variables — never commit real credentials
 .env
 .env.*
 !.env.example
+
+# GCP / Firebase service account keys (never commit)
+*-service-account*.json
+serviceAccountKey*.json
+firebase-adminsdk*.json
+gcp-keyfile*.json
 
 # Logs (Winston, npm, etc.)
 *.log
@@ -17,6 +24,19 @@ logs/
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Uploaded documents / binary files (stored in Cloud Storage, not git)
+uploads/
+tmp/
+*.pdf
+*.docx
+*.doc
+*.xlsx
+*.pptx
 
 # IDE / editor tool config (not project source)
 .vscode/
