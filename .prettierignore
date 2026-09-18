@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+.next/
+out/
+dist/
+
+# Tool/agent directories
+.claude/
+
+# Lock files
+package-lock.json
+
+# Generated
+frontend/next-env.d.ts
