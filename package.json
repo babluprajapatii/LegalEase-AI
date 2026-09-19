@@ -10,8 +10,8 @@
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "test": "node --test tests/**/*.test.ts",
-    "secret-scan": "grep -rnE \"API_KEY|SECRET|PRIVATE_KEY|password|token\" --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=dist --exclude=.env --include=*.ts --include=*.tsx --include=*.json .",
+    "test": "npx tsx --test tests/**/*.test.ts",
+    "secret-scan": "node scripts/secret-scan.js",
     "prepare": "npm run lint && npm run typecheck && npm run format"
   },
   "devDependencies": {

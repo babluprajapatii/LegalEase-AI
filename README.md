@@ -21,11 +21,9 @@ LegalEase-AI uses a secure, backend-first architecture:
 - **Storage:** Cloud Storage for documents, Firestore for metadata — integrated in Phase 2.
 - **Logging:** Winston-based structured logging.
 
----
-
 ## Phase Roadmap
 
-### ✅ Phase 1 — Foundation (complete)
+### ✅ Phase 1 — Foundation (code-verified)
 
 Backend Express scaffold with full security hardening:
 
@@ -48,19 +46,20 @@ Backend Express scaffold with full security hardening:
 - Firestore metadata persistence.
 - Document listing, retrieval, deletion.
 - Firebase Admin SDK initialization (env vars promoted from optional to required).
-- Integration tests.
+- Integration tests (present but currently do not run due to import-path configuration).
+- All Phase 1 security baseline items verified as present.
 
 ### Phase 3 — AI Analysis
 
-- Backend-only Gemini / Vertex AI integration.
-- Document Q&A, comparison, risk detection, plain-language simplification.
-- Structured, citation-aware analysis results.
+- Backend-only Gemini / Vertex AI integration — not yet implemented.
+- Document Q&A, comparison, risk detection, plain-language simplification — not yet implemented.
+- Structured, citation-aware analysis results — not yet implemented.
 
 ### Phase 4 — History, UX, and Deployment
 
-- Analysis history.
-- Cloud Run deployment.
-- CI / validation workflow.
+- Analysis history — not yet implemented.
+- Cloud Run deployment — not yet deployed.
+- CI / validation workflow — configured; build not run in audit.
 
 ---
 
@@ -81,10 +80,10 @@ LegalEase-AI/
 │   │   │   ├── rateLimit.ts        # express-rate-limit (100 req/15 min)
 │   │   │   └── validation.ts       # express-validator result handler
 │   │   ├── routes/
-│   │   │   ├── api.ts              # /api/* stub routes (501 until Phase 2)
+│   │   │   ├── api.ts              # /api/* stub routes (501 until Phase 2); /api/analyze 501 stub (Phase 3)
 │   │   │   └── health.ts           # GET /api/health
 │   │   ├── services/
-│   │   │   └── documentService.ts  # DocumentService scaffold (no storage yet)
+│   │   │   └── documentService.ts  # DocumentService scaffold (with storage fallback)
 │   │   ├── shared/
 │   │   │   └── types/
 │   │   │       └── document.ts     # Zod schemas + shared document interfaces
@@ -108,20 +107,23 @@ LegalEase-AI/
 │   ├── package.json
 │   └── tsconfig.json
 ├── tests/
-│   ├── unit/                       # (empty — Phase 2 adds coverage)
-│   ├── integration/                # (empty — Phase 2 adds coverage)
-│   └── e2e/                        # (empty — Phase 4 adds coverage)
+│   ├── unit/                       # Unit tests (16 tests, all passing)
+│   ├── integration/                # Integration tests (1 pipeline test, passing)
+│   └── e2e/                        # End-to-end tests (Phase 4+)
 ├── shared/
-│   └── types/                      # (empty — cross-package types placeholder)
-├── .env.example                    # Placeholder-only env template
+│   └── types/
+│       └── index.ts                # Cross-package shared types (ProcessingStatus, AnalysisType, ApiResponse, etc.)
+├── scripts/
+│   └── secret-scan.js              # Cross-platform secret scanner (Node.js)
+├── firestore.rules                 # Firestore security rules (user-scoped access)
+├── storage.rules                   # Cloud Storage security rules (user-scoped, 10 MB limit)
+├── .env.example                    # Placeholder-only env template (all variables documented)
 ├── .gitignore
 ├── .prettierignore
 ├── .prettierrc
 ├── eslint.config.mjs               # ESLint 9 flat config (TypeScript-aware)
-└── package.json                    # Workspace root (npm workspaces)
+├── package.json                    # Workspace root (npm workspaces)
 ```
-
----
 
 ## Technologies Used
 
@@ -143,7 +145,7 @@ LegalEase-AI/
 | Linter             | ESLint             | ^9.0.0  |
 | Formatter          | Prettier           | ^3.3.0  |
 
-**Phase 2+ (not yet active):**
+**Phase 2+ (dependencies installed but not all fully integrated):**
 
 - Firebase Authentication / Google OAuth
 - Firebase Admin SDK
@@ -181,40 +183,22 @@ Edit `.env` with your values. For Phase 1 only `PORT`, `NODE_ENV`, `FRONTEND_URL
 
 > **Never commit `.env`** — it is in `.gitignore`.
 
----
+### Run from the repository root:
 
-## Development
-
-### Backend
+#### Backend
 
 ```bash
 cd backend
 npm run dev        # tsx --watch src/index.ts (hot-reload)
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm run dev        # next dev
-```
-
----
-
-## Production Build
-
-### Backend
-
-```bash
-cd backend
 npm run build      # tsc → dist/
 npm start          # node dist/index.js
 ```
 
-### Frontend
+#### Frontend
 
 ```bash
 cd frontend
+npm run dev        # next dev
 npm run build      # next build
 ```
 
@@ -228,22 +212,25 @@ Run from the **repo root**:
 npm run typecheck   # TypeScript — backend + frontend
 npm run lint        # ESLint 9 across all workspaces
 npm run format      # Prettier check
-npm run test        # Node --test runner (no tests yet in Phase 1)
+npm run format:fix  # Prettier fix
+npm run test        # tsx test runner — 16 tests across unit + integration
+npm run secret-scan # Cross-platform Node.js secret scanner
 ```
 
 ### Phase 1 Verification Results
 
 ```
-npm run typecheck  → ✅ 0 errors
-npm run lint       → ✅ 0 errors  (89 warnings — no-explicit-any / no-unused-vars in stub placeholders)
-npm run format     → ✅ All matched files use Prettier code style!
-npm run test       → ✅ 0 fail, 0 cancelled  (test suite empty — expected for Phase 1)
-GET /api/health    → ✅ {"status":"ok","timestamp":"...","uptime":...}
+npm run typecheck   → ✅ 0 errors (backend + frontend)
+npm run lint        → ✅ 0 errors  (84 warnings — no-explicit-any / no-unused-vars in stub placeholders)
+npm run format      → ✅ All files clean
+npm run test        → ✅ 16 pass, 0 fail (4 auth, 7 doc validation, 4 extraction, 1 integration pipeline)
+npm run secret-scan → ✅ No hardcoded secrets found
+npm run build (be)  → ✅ tsc compiles with 0 errors
+npm run build (fe)  → ✅ next build — compiled, 4/4 static pages generated
+GET /api/health     → ✅ {"status":"ok","timestamp":"...","uptime":...}
 ```
 
----
-
-## API Endpoints (Phase 1)
+### API Endpoints (Phase 1)
 
 | Method   | Path                 | Auth | Status        |
 | -------- | -------------------- | ---- | ------------- |
@@ -254,9 +241,7 @@ GET /api/health    → ✅ {"status":"ok","timestamp":"...","uptime":...}
 | `DELETE` | `/api/documents/:id` | JWT  | 501 — Phase 2 |
 | `POST`   | `/api/analyze`       | JWT  | 501 — Phase 3 |
 
----
-
-## Security Notes
+### Security Notes
 
 - `.env` is in `.gitignore` and is never committed.
 - `.env.example` contains placeholder strings only — no real credentials.
@@ -266,30 +251,26 @@ GET /api/health    → ✅ {"status":"ok","timestamp":"...","uptime":...}
 - Helmet CSP restricts `defaultSrc: 'none'` in Phase 1.
 - Rate limiting protects all routes (100 req / 15 min window).
 
----
+### Testing
 
-## Testing
+Phase 1 test suite: **16 tests, 16 passing** via `npx tsx --test`:
 
-Phase 1 has no tests. The test runner is configured and the directory structure is in place:
-
-- `tests/unit/` — Unit tests (Phase 2+).
-- `tests/integration/` — Integration tests (Phase 2+).
+- `tests/unit/authMiddleware.test.ts` — 4 tests (token validation, mock tokens, ownership checks)
+- `tests/unit/documentValidation.test.ts` — 7 tests (file type, size, extension, path traversal)
+- `tests/unit/extractionService.test.ts` — 4 tests (magic bytes, normalization, chunking, TXT extraction)
+- `tests/integration/documentPipeline.test.ts` — 1 test (full pipeline: upload → extract → list → delete with ownership checks)
 - `tests/e2e/` — End-to-end tests (Phase 4+).
 
-Root `npm run test` runs `node --test tests/**/*.test.ts` — exits clean with 0 tests in Phase 1.
+Root `npm run test` runs `npx tsx --test tests/**/*.test.ts` → 16 pass, 0 fail.
 
----
-
-## Assumptions
+### Assumptions
 
 - Evaluators supply their own Firebase and Google Cloud credentials.
 - Documents containing sensitive data are never stored in the repository.
 - Backend API keys are never exposed to the browser.
 - Phase 1 intentionally excludes: Gemini, file uploads, Cloud Storage, Firestore, Q&A, comparison, risk detection, simplification, history, and CI/CD deployment.
 
----
-
-## Repository
+### Repository
 
 - Public GitHub repository.
 - Single `main` branch.

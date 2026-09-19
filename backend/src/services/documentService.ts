@@ -1,83 +1,307 @@
+import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logging';
 import { DocumentMetadata, ProcessingStatus } from '../types';
 import { SecurityValidationResult } from '../shared/types/document';
+import { StorageService } from './storageService';
+import { ExtractionService } from './extractionService';
+import { FirestoreService, ExtendedDocumentMetadata } from './firestoreService';
 
 export class DocumentService {
-  async validateDocumentUpload(file: any): Promise<SecurityValidationResult> {
+  private storageService: StorageService;
+  private extractionService: ExtractionService;
+  private firestoreService: FirestoreService;
+
+  constructor(
+    storageService = new StorageService(),
+    extractionService = new ExtractionService(),
+    firestoreService = new FirestoreService(),
+  ) {
+    this.storageService = storageService;
+    this.extractionService = extractionService;
+    this.firestoreService = firestoreService;
+  }
+
+  /**
+   * Multi-layer validation for file uploads (size limit 10 MB, type & extension, filename sanitization).
+   */
+  async validateDocumentUpload(file: {
+    filename?: string;
+    originalname?: string;
+    contentType?: string;
+    mimetype?: string;
+    size?: number;
+  }): Promise<SecurityValidationResult> {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (!file) {
-      errors.push('File is required');
+      errors.push('File metadata is required');
       return { isValid: false, errors, warnings };
     }
 
-    if (!file.originalname || !file.mimetype) {
-      errors.push('File must have a name and type');
+    const filename = file.filename || file.originalname;
+    const contentType = file.contentType || file.mimetype;
+    const size = file.size;
+
+    if (!filename || filename.trim().length === 0) {
+      errors.push('Filename is required');
+    } else {
+      // Path traversal & malicious filename check
+      if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+        errors.push('Invalid filename: path traversal characters detected');
+      }
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      errors.push('File size must not exceed 10 MB');
+    if (!contentType || contentType.trim().length === 0) {
+      errors.push('Content-Type is required');
+    } else {
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/docx',
+        'text/plain',
+      ];
+      if (!allowedTypes.includes(contentType.toLowerCase())) {
+        errors.push('Invalid Content-Type. Allowed file types: PDF, DOCX, TXT');
+      }
     }
 
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-    ];
-    if (!allowedTypes.includes(file.mimetype)) {
-      errors.push('File type must be PDF, DOCX, or TXT');
+    if (filename) {
+      const extension = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+      const allowedExtensions = ['.pdf', '.docx', '.txt'];
+      if (!allowedExtensions.includes(extension)) {
+        errors.push('Invalid file extension. Allowed extensions: .pdf, .docx, .txt');
+      }
     }
 
-    if (file.size === 0) {
-      errors.push('File must not be empty');
+    if (typeof size !== 'number' || isNaN(size)) {
+      errors.push('File size must be a valid number');
+    } else if (size <= 0) {
+      errors.push('File must not be empty (0 bytes)');
+    } else if (size > 10 * 1024 * 1024) {
+      errors.push('File size exceeds maximum allowed limit of 10 MB');
     }
 
     if (errors.length === 0) {
-      warnings.push('File validation passed');
+      warnings.push('Document upload validation passed');
     }
 
     return { isValid: errors.length === 0, errors, warnings };
   }
 
+  /**
+   * Sanitizes filenames to prevent path traversal or unwanted special characters.
+   */
+  sanitizeFilename(filename: string): string {
+    return filename.replace(/[^a-zA-Z0-9_.-]/g, '_');
+  }
+
+  /**
+   * Initiates document upload: validates metadata, generates GCS signed upload URL, creates Firestore metadata entry.
+   */
+  async initiateUpload(
+    userId: string,
+    input: { filename: string; contentType: string; size: number },
+  ): Promise<{
+    documentId: string;
+    signedUploadUrl: string;
+    storagePath: string;
+    processingStatus: ProcessingStatus;
+    metadata: ExtendedDocumentMetadata;
+  }> {
+    const validation = await this.validateDocumentUpload(input);
+    if (!validation.isValid) {
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    const documentId = `doc_${uuidv4()}`;
+    const sanitizedFilename = this.sanitizeFilename(input.filename);
+
+    let signedUploadUrl = '';
+    let storagePath = `users/${userId}/documents/${documentId}/original`;
+
+    try {
+      const urlResult = await this.storageService.generateSignedUploadUrl(
+        userId,
+        documentId,
+        input.contentType,
+      );
+      signedUploadUrl = urlResult.signedUrl;
+      storagePath = urlResult.storagePath;
+    } catch (error) {
+      logger.warn(
+        'Failed to generate GCS signed upload URL, proceeding with storage path fallback',
+        { error },
+      );
+      signedUploadUrl = `http://localhost:3001/api/documents/${documentId}/mock-upload`;
+    }
+
+    const metadata: ExtendedDocumentMetadata = {
+      id: documentId,
+      userId,
+      filename: sanitizedFilename,
+      contentType: input.contentType,
+      size: input.size,
+      uploadDate: new Date(),
+      processingStatus: ProcessingStatus.UPLOADING,
+      storagePath,
+      analysisIds: [],
+    };
+
+    await this.firestoreService.createDocument(metadata);
+
+    logger.info('Document upload initiated', { documentId, userId, filename: sanitizedFilename });
+
+    return {
+      documentId,
+      signedUploadUrl,
+      storagePath,
+      processingStatus: metadata.processingStatus,
+      metadata,
+    };
+  }
+
+  /**
+   * Confirms direct upload and triggers extraction & processing pipeline.
+   */
+  async confirmAndProcessUpload(
+    documentId: string,
+    userId: string,
+    providedBuffer?: Buffer,
+  ): Promise<ExtendedDocumentMetadata> {
+    const metadata = await this.firestoreService.getDocument(documentId);
+    if (!metadata) {
+      throw new Error(`Document with ID ${documentId} not found`);
+    }
+
+    if (metadata.userId !== userId) {
+      throw new Error('Access denied: ownership verification failed');
+    }
+
+    // Step 1: Update status to validating
+    await this.firestoreService.updateDocument(documentId, {
+      processingStatus: ProcessingStatus.VALIDATING,
+    });
+
+    try {
+      // Step 2: Download buffer or use provided buffer
+      let buffer: Buffer;
+      if (providedBuffer) {
+        buffer = providedBuffer;
+      } else {
+        buffer = await this.storageService.downloadFileBuffer(
+          metadata.storagePath || `users/${userId}/documents/${documentId}/original`,
+        );
+      }
+
+      // Step 3: Validate magic byte file signature
+      const isSignatureValid = this.extractionService.validateFileSignature(
+        buffer,
+        metadata.contentType,
+      );
+      if (!isSignatureValid) {
+        const errorMsg =
+          'File content inspection failed: magic bytes do not match reported Content-Type';
+        logger.warn(errorMsg, { documentId, contentType: metadata.contentType });
+        return await this.firestoreService.updateDocument(documentId, {
+          processingStatus: ProcessingStatus.FAILED,
+          errorMessage: errorMsg,
+        });
+      }
+
+      // Step 4: Extract text & chunk
+      await this.firestoreService.updateDocument(documentId, {
+        processingStatus: ProcessingStatus.EXTRACTING,
+      });
+
+      const extracted = await this.extractionService.extractText(buffer, metadata.contentType);
+
+      // Step 5: Mark complete with metadata & chunks
+      const updatedMetadata = await this.firestoreService.updateDocument(documentId, {
+        processingStatus: ProcessingStatus.COMPLETE,
+        pageCount: extracted.pageCount,
+        wordCount: extracted.wordCount,
+        chunksCount: extracted.chunks.length,
+        extractedText: extracted.text,
+      });
+
+      logger.info('Document extraction & processing completed successfully', {
+        documentId,
+        pageCount: extracted.pageCount,
+        wordCount: extracted.wordCount,
+        chunksCount: extracted.chunks.length,
+      });
+
+      return updatedMetadata;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('Document processing failed', { documentId, error: message });
+
+      return await this.firestoreService.updateDocument(documentId, {
+        processingStatus: ProcessingStatus.FAILED,
+        errorMessage: message,
+      });
+    }
+  }
+
+  /**
+   * Legacy compatible method for creating document metadata directly.
+   */
   async createDocumentMetadata(
     userId: string,
     filename: string,
     contentType: string,
     size: number,
   ): Promise<DocumentMetadata> {
-    const documentId = this.generateDocumentId();
-
-    const metadata: DocumentMetadata = {
-      id: documentId,
-      userId,
-      filename,
-      contentType,
-      size,
-      uploadDate: new Date(),
-      processingStatus: ProcessingStatus.UPLOADING,
-      analysisIds: [],
-    };
-
-    logger.info('Document metadata created', {
-      documentId,
-      userId,
-      filename,
-      contentType,
-      size,
-    });
-
-    return metadata;
+    const result = await this.initiateUpload(userId, { filename, contentType, size });
+    return result.metadata;
   }
 
+  /**
+   * Legacy compatible method for updating status.
+   */
   async updateDocumentStatus(documentId: string, status: ProcessingStatus): Promise<void> {
-    logger.info('Document processing status updated', {
-      documentId,
-      status,
-    });
+    await this.firestoreService.updateDocument(documentId, { processingStatus: status });
   }
 
-  private generateDocumentId(): string {
-    return `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  /**
+   * Lists all documents belonging to user.
+   */
+  async getUserDocuments(userId: string): Promise<ExtendedDocumentMetadata[]> {
+    return await this.firestoreService.getUserDocuments(userId);
+  }
+
+  /**
+   * Retrieves single document with ownership verification.
+   */
+  async getDocumentById(documentId: string, userId: string): Promise<ExtendedDocumentMetadata> {
+    const doc = await this.firestoreService.getDocument(documentId);
+    if (!doc) {
+      throw new Error(`Document with ID ${documentId} not found`);
+    }
+
+    if (doc.userId !== userId) {
+      throw new Error('Access denied: ownership verification failed');
+    }
+
+    return doc;
+  }
+
+  /**
+   * Deletes document file from GCS and metadata from Firestore.
+   */
+  async deleteDocument(documentId: string, userId: string): Promise<void> {
+    const doc = await this.getDocumentById(documentId, userId);
+
+    if (doc.storagePath) {
+      try {
+        await this.storageService.deleteStorageFile(doc.storagePath);
+      } catch (error) {
+        logger.warn('GCS file deletion warning', { documentId, error });
+      }
+    }
+
+    await this.firestoreService.deleteDocument(documentId);
+    logger.info('Document deleted completely', { documentId, userId });
   }
 }

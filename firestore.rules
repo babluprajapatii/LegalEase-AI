@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Default: deny all access ──────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Users collection ──────────────────────────────────────
+    // Users can only read/write their own profile document.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Account deletion handled server-side
+    }
+
+    // ─── Documents collection ──────────────────────────────────
+    // Users can only access documents they own (userId field must match auth uid).
+    match /documents/{documentId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Analysis results ──────────────────────────────────────
+    // Users can only read analysis results for their own documents.
+    match /analyses/{analysisId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create, update: if false; // Only backend (Admin SDK) writes analyses
+      allow delete: if false;         // Only backend (Admin SDK) deletes analyses
+    }
+  }
+}

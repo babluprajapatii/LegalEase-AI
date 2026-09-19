@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { getFirebaseAuth } from '../config/firebase';
+import { logger } from '../utils/logging';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -8,11 +9,11 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-export function authenticateToken(
+export async function authenticateToken(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
-): void {
+): Promise<void> {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -22,46 +23,52 @@ export function authenticateToken(
       return;
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'dev-secret-change-in-production',
-    ) as any;
+    // Support mock tokens strictly during test environment if explicitly set
+    if (process.env.NODE_ENV === 'test' && token.startsWith('mock-token-')) {
+      const mockUid = token.replace('mock-token-', '');
+      req.user = {
+        uid: mockUid,
+        email: `${mockUid}@example.com`,
+      };
+      next();
+      return;
+    }
 
+    const decodedToken = await getFirebaseAuth().verifyIdToken(token);
     req.user = {
-      uid: decoded.uid || decoded.sub,
-      email: decoded.email,
+      uid: decodedToken.uid,
+      email: decodedToken.email,
     };
 
     next();
-  } catch (error) {
-    res.status(403).json({ error: 'Invalid token' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn('Firebase ID token verification failed', { error: message });
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  authenticateToken(req, res, () => {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-    next();
-  });
+  if (!req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+  next();
 }
 
 export function requireOwnership(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
-  resourceUserId?: string,
 ): void {
   if (!req.user) {
     res.status(401).json({ error: 'Authentication required' });
     return;
   }
 
-  const resourceOwnerId = resourceUserId || req.params.userId;
+  const resourceOwnerId = req.params.userId || req.body?.userId;
 
-  if (req.user.uid !== resourceOwnerId) {
+  if (resourceOwnerId && req.user.uid !== resourceOwnerId) {
     res.status(403).json({ error: 'Access denied' });
     return;
   }

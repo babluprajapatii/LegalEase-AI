@@ -1,34 +1,22 @@
-import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth';
+import { Router, Response } from 'express';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import documentHandlers from '../handlers/documents';
 
 const router = Router();
 
-router.post('/upload', authenticateToken, (req: any, res: any) => {
-  res.status(501).json({
-    error: 'Document upload endpoint not yet implemented - coming in Phase 2',
-  });
-});
+// Document Ingestion & Storage Endpoints (Phase 2)
+router.use('/documents', documentHandlers);
 
-router.get('/documents', authenticateToken, (req: any, res: any) => {
-  res.status(501).json({
-    error: 'Document listing endpoint not yet implemented - coming in Phase 2',
-  });
-});
+// Alias for POST /api/upload
+router.use('/upload', documentHandlers);
 
-router.get('/documents/:id', authenticateToken, (req: any, res: any) => {
-  res.status(501).json({
-    error: 'Document retrieval endpoint not yet implemented - coming in Phase 2',
-  });
-});
+// User Profile Upsert Endpoint
+router.use('/users', documentHandlers);
 
-router.delete('/documents/:id', authenticateToken, (req: any, res: any) => {
+// Phase 3 Endpoint (GenAI Legal Analysis) — stubbed until Phase 3
+router.post('/analyze', authenticateToken, (req: AuthenticatedRequest, res: Response): void => {
   res.status(501).json({
-    error: 'Document deletion endpoint not yet implemented - coming in Phase 2',
-  });
-});
-
-router.post('/analyze', authenticateToken, (req: any, res: any) => {
-  res.status(501).json({
+    success: false,
     error: 'Document analysis endpoint not yet implemented - coming in Phase 3',
   });
 });

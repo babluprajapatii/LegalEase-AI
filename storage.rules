@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Default: deny all access ──────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // ─── User-scoped document storage ──────────────────────────
+    // Path structure: users/{userId}/documents/{documentId}/original
+    // Users can only access their own document files.
+    match /users/{userId}/documents/{documentId}/{fileName} {
+      // Read: authenticated user must own the path
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Write: authenticated user must own the path, file <= 10 MB,
+      // and content type must be an allowed document format.
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size <= 10 * 1024 * 1024
+                   && request.resource.contentType.matches(
+                        'application/pdf|application/vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document|text/plain'
+                      );
+
+      // Delete: authenticated user must own the path
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
