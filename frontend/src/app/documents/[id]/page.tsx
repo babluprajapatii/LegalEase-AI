@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import ProtectedRoute from '../../../components/ProtectedRoute';
+import Sidebar from '../../../components/Sidebar';
+import StatusBadge from '../../../components/ui/StatusBadge';
 import { useAuth } from '../../../lib/auth-context';
 import { getAnalysis, analyzeDocument } from '../../../lib/api-client';
 import { AnalysisDocumentRecord, ClauseItem } from '../../../../../shared/types';
 
-export default function DocumentAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const documentId = resolvedParams.id;
-
+function AnalysisContent({ documentId }: { documentId: string }) {
   const { user, token } = useAuth();
   const [record, setRecord] = useState<AnalysisDocumentRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function DocumentAnalysisPage({ params }: { params: Promise<{ id:
           return;
         }
       } catch {
-        // Analysis not found, trigger automated initial analysis
+        // Analysis not found, trigger initial automated analysis
         setAnalyzing(true);
         const analyzeRes = await analyzeDocument(token, documentId);
         if (analyzeRes.data) {
@@ -82,297 +82,551 @@ export default function DocumentAnalysisPage({ params }: { params: Promise<{ id:
     }
   };
 
+  const getRiskBadge = (level: string) => {
+    switch (level) {
+      case 'high':
+        return (
+          <span className="badge badge-error">
+            <span aria-hidden="true">▲</span> High attention
+          </span>
+        );
+      case 'medium':
+        return (
+          <span className="badge badge-warning">
+            <span aria-hidden="true">△</span> Review attention
+          </span>
+        );
+      default:
+        return (
+          <span className="badge badge-success">
+            <span aria-hidden="true">○</span> Low attention
+          </span>
+        );
+    }
+  };
+
   if (loading || analyzing) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6">
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full text-center shadow-xl">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold mb-2">
-            {analyzing ? 'Analyzing Document with AI...' : 'Loading Analysis...'}
-          </h2>
-          <p className="text-sm text-slate-400">
-            Extracting clauses, obligations, key dates, and grounded risk indicators.
-          </p>
-        </div>
+      <div className="authenticated-layout">
+        <Sidebar />
+        <main className="authenticated-content" role="main">
+          <div className="empty-state" style={{ minHeight: '60vh' }}>
+            <div className="loading-spinner-lg" />
+            <h2 style={{ marginTop: '16px', fontSize: '20px', fontWeight: 600 }}>
+              {analyzing ? 'Analyzing Document with AI...' : 'Loading Analysis...'}
+            </h2>
+            <p
+              style={{ color: 'var(--color-text-secondary)', fontSize: '14px', maxWidth: '400px' }}
+            >
+              Extracting clauses, obligations, key dates, and grounded risk indicators.
+            </p>
+          </div>
+        </main>
       </div>
     );
   }
 
   if (error || !record) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6">
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full text-center shadow-xl">
-          <div className="w-12 h-12 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-xl">
-            !
-          </div>
-          <h2 className="text-xl font-semibold mb-2 text-red-400">Analysis Error</h2>
-          <p className="text-sm text-slate-300 mb-6">{error || 'Could not load analysis record'}</p>
-          <div className="flex gap-3 justify-center">
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition"
+      <div className="authenticated-layout">
+        <Sidebar />
+        <main className="authenticated-content" role="main">
+          <div className="empty-state" style={{ minHeight: '60vh' }}>
+            <div
+              aria-hidden="true"
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: 'var(--color-error-bg)',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                marginBottom: '16px',
+              }}
             >
-              Back to Dashboard
-            </Link>
-            <button
-              onClick={fetchRecord}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition"
+              !
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--color-error)' }}>
+              Analysis Error
+            </h2>
+            <p
+              style={{
+                color: 'var(--color-text-secondary)',
+                fontSize: '14px',
+                marginBottom: '24px',
+              }}
             >
-              Retry
-            </button>
+              {error || 'Could not load analysis record'}
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Link href="/dashboard" className="btn-secondary">
+                Back to Dashboard
+              </Link>
+              <button onClick={fetchRecord} className="btn-primary">
+                Retry Analysis
+              </button>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
   const { results } = record;
 
-  const getRiskBadge = (level: string) => {
-    switch (level) {
-      case 'high':
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 rounded-full">
-            High Risk Area
-          </span>
-        );
-      case 'medium':
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
-            Attention Deserved
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
-            Standard Clause
-          </span>
-        );
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Header Navigation */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="p-2 text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 rounded-lg transition"
-            title="Back to Dashboard"
+    <div className="authenticated-layout">
+      <Sidebar />
+      <main className="authenticated-content" role="main">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Header Navigation & Document Title */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid var(--color-border)',
+            }}
           >
-            ← Back
-          </Link>
-          <div>
-            <h1 className="text-lg font-bold text-white flex items-center gap-2">
-              Legal Analysis Report
-              <span className="text-xs font-mono bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded">
-                Grounded AI
-              </span>
-            </h1>
-            <p className="text-xs text-slate-400 font-mono">
-              Doc ID: {documentId} • Processed in {record.processingTimeMs}ms • Model:{' '}
-              {record.modelName}
-            </p>
+            <div>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}
+              >
+                <Link
+                  href="/documents"
+                  className="btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '12px' }}
+                >
+                  ← Documents
+                </Link>
+                <StatusBadge status="complete" />
+                <span className="badge badge-ai">Grounded AI</span>
+              </div>
+              <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                Legal Analysis Report
+              </h1>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--color-text-secondary)',
+                  fontFamily: 'monospace',
+                }}
+              >
+                Doc ID: {documentId} · Processed in {record.processingTimeMs}ms · Model:{' '}
+                {record.modelName}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={handleReanalyze}
+                disabled={analyzing}
+                className="btn-secondary"
+                style={{ fontSize: '13px' }}
+              >
+                🔄 {analyzing ? 'Analyzing...' : 'Re-analyze'}
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="btn-primary"
+                style={{ fontSize: '13px' }}
+              >
+                Export Report
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleReanalyze}
-            disabled={analyzing}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5"
+          {/* Educational AI Disclaimer Banner — design.md §12 */}
+          <div
+            style={{
+              background: 'var(--color-warning-bg)',
+              border: '1px solid var(--color-warning)',
+              borderRadius: '8px',
+              padding: '16px',
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'flex-start',
+            }}
           >
-            🔄 {analyzing ? 'Analyzing...' : 'Re-analyze'}
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium shadow transition"
+            <span style={{ fontSize: '20px', lineHeight: 1 }}>⚠️</span>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
+              <strong style={{ color: 'var(--color-warning)' }}>
+                EDUCATIONAL PURPOSE DISCLAIMER:
+              </strong>{' '}
+              {results.disclaimer}
+            </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              borderBottom: '1px solid var(--color-border)',
+              overflowX: 'auto',
+            }}
           >
-            Export PDF Report
-          </button>
-        </div>
-      </header>
+            {[
+              { id: 'summary', label: 'Executive Summary', icon: '📝' },
+              {
+                id: 'clauses',
+                label: `Key Clauses & Risks (${results.clauses.length})`,
+                icon: '🛡️',
+              },
+              {
+                id: 'obligations',
+                label: `Obligations (${results.obligations.length})`,
+                icon: '📋',
+              },
+              {
+                id: 'dates',
+                label: `Important Dates (${results.importantDates.length})`,
+                icon: '📅',
+              },
+              { id: 'guidance', label: 'Actionable Guidance', icon: '💡' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                style={{
+                  padding: '10px 16px',
+                  fontSize: '14px',
+                  fontWeight: activeTab === tab.id ? 600 : 400,
+                  color:
+                    activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                  borderBottom:
+                    activeTab === tab.id
+                      ? '2px solid var(--color-primary)'
+                      : '2px solid transparent',
+                  background: 'none',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
 
-      {/* Prominent Educational AI Disclaimer Banner */}
-      <div className="bg-amber-950/40 border-b border-amber-500/30 px-6 py-3.5 flex items-start gap-3">
-        <span className="text-amber-400 text-lg leading-none mt-0.5">⚠️</span>
-        <div className="text-xs text-amber-200/90 leading-relaxed">
-          <strong className="font-semibold text-amber-300">EDUCATIONAL PURPOSE DISCLAIMER:</strong>{' '}
-          {results.disclaimer}
-        </div>
-      </div>
-
-      {/* Main Analysis Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-        {/* Navigation Tabs */}
-        <nav className="flex border-b border-slate-800 space-x-2 overflow-x-auto pb-1">
-          {[
-            { id: 'summary', label: 'Executive Summary', icon: '📝' },
-            { id: 'clauses', label: `Key Clauses & Risks (${results.clauses.length})`, icon: '🛡️' },
-            { id: 'obligations', label: `Obligations (${results.obligations.length})`, icon: '📋' },
-            {
-              id: 'dates',
-              label: `Important Dates (${results.importantDates.length})`,
-              icon: '📅',
-            },
-            { id: 'guidance', label: 'Actionable Guidance', icon: '💡' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2.5 rounded-t-lg font-medium text-sm transition flex items-center gap-2 border-b-2 whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-400 bg-slate-900'
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
-              }`}
+          {/* Tab 1: Executive Summary */}
+          {activeTab === 'summary' && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '24px',
+              }}
             >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="card" style={{ padding: '24px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
+                    Executive Summary
+                  </h2>
+                  <p
+                    style={{
+                      color: 'var(--color-text-primary)',
+                      lineHeight: 1.6,
+                      fontSize: '15px',
+                      whiteSpace: 'pre-line',
+                    }}
+                  >
+                    {results.summary}
+                  </p>
+                </div>
 
-        {/* Tab 1: Executive Summary */}
-        {activeTab === 'summary' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <span>Executive Summary</span>
-                </h2>
-                <p className="text-slate-300 leading-relaxed text-sm whitespace-pre-line">
-                  {results.summary}
-                </p>
+                {/* Key Risk Highlights */}
+                <div className="card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+                    🚨 Priority Attention Areas
+                  </h3>
+                  {results.risks.length === 0 ? (
+                    <p
+                      style={{
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '14px',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      No high-risk clauses or unusual attention areas were flagged in this document.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {results.risks.map((risk) => (
+                        <div
+                          key={risk.id}
+                          style={{
+                            background: 'var(--color-background)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '8px',
+                            padding: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <h4 style={{ fontSize: '15px', fontWeight: 600 }}>{risk.clauseName}</h4>
+                            {getRiskBadge(risk.riskLevel)}
+                          </div>
+                          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                            {risk.whyAttention}
+                          </p>
+                          <div
+                            style={{
+                              paddingTop: '8px',
+                              borderTop: '1px solid var(--color-border)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '12px',
+                            }}
+                          >
+                            <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>
+                              💡 Ask Lawyer: "{risk.suggestedQuestion}"
+                            </span>
+                            <button
+                              onClick={() =>
+                                setSelectedCitation({
+                                  title: risk.clauseName,
+                                  text: risk.description,
+                                  section: risk.section,
+                                  page: risk.page,
+                                })
+                              }
+                              style={{
+                                color: 'var(--color-info)',
+                                background: 'none',
+                                border: 'none',
+                                textDecoration: 'underline',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              View Source ↗
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Key Risk Highlights */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-                <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
-                  <span>🚨 Priority Attention Areas</span>
-                </h3>
-                {results.risks.length === 0 ? (
-                  <p className="text-slate-400 text-sm italic">
-                    No high-risk clauses or unusual attention areas were flagged in this document.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {results.risks.map((risk) => (
-                      <div
-                        key={risk.id}
-                        className="bg-slate-800/60 border border-slate-700/80 rounded-lg p-4 space-y-2"
-                      >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold text-slate-200 text-sm">
-                            {risk.clauseName}
-                          </h4>
-                          {getRiskBadge(risk.riskLevel)}
-                        </div>
-                        <p className="text-xs text-slate-300">{risk.whyAttention}</p>
-                        <div className="pt-2 flex items-center justify-between border-t border-slate-700/50 text-xs">
-                          <span className="text-indigo-400 font-medium">
-                            💡 Ask Lawyer: "{risk.suggestedQuestion}"
-                          </span>
-                          <button
-                            onClick={() =>
-                              setSelectedCitation({
-                                title: risk.clauseName,
-                                text: risk.description,
-                                section: risk.section,
-                                page: risk.page,
-                              })
-                            }
-                            className="text-slate-400 hover:text-white underline text-xs"
-                          >
-                            View Source Clause
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+              {/* Sidebar Info */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="card" style={{ padding: '20px' }}>
+                  <h3
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: 'var(--color-text-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    Document Grounding Audit
+                  </h3>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        paddingBottom: '8px',
+                        borderBottom: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Grounding Status</span>
+                      <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                        100% Grounded
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        paddingBottom: '8px',
+                        borderBottom: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <span style={{ color: 'var(--color-text-secondary)' }}>
+                        Extracted Clauses
+                      </span>
+                      <span style={{ fontWeight: 600 }}>{results.clauses.length}</span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        paddingBottom: '8px',
+                        borderBottom: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <span style={{ color: 'var(--color-text-secondary)' }}>
+                        Tracked Obligations
+                      </span>
+                      <span style={{ fontWeight: 600 }}>{results.obligations.length}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Important Dates</span>
+                      <span style={{ fontWeight: 600 }}>{results.importantDates.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Missing / Unpresent Information */}
+                {results.unpresentInformation && results.unpresentInformation.length > 0 && (
+                  <div
+                    className="card"
+                    style={{ padding: '20px', borderLeft: '4px solid var(--color-warning)' }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: 'var(--color-warning)',
+                        marginBottom: '12px',
+                      }}
+                    >
+                      🔍 Missing / Omitted Details
+                    </h3>
+                    <ul
+                      style={{
+                        paddingLeft: '16px',
+                        margin: 0,
+                        fontSize: '13px',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
+                      {results.unpresentInformation.map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: '6px' }}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
             </div>
+          )}
 
-            {/* Sidebar Context & Document Health */}
-            <div className="space-y-6">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                  Document Grounding Audit
-                </h3>
-                <div className="space-y-3 text-xs text-slate-300">
-                  <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Grounding Status</span>
-                    <span className="text-emerald-400 font-semibold">100% Grounded</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Extracted Clauses</span>
-                    <span className="font-mono text-white">{results.clauses.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                    <span className="text-slate-400">Tracked Obligations</span>
-                    <span className="font-mono text-white">{results.obligations.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-slate-400">Important Dates</span>
-                    <span className="font-mono text-white">{results.importantDates.length}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Unpresent Information / Omissions */}
-              {results.unpresentInformation && results.unpresentInformation.length > 0 && (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-3">
-                  <h3 className="text-sm font-bold text-amber-400 flex items-center gap-1.5">
-                    <span>🔍 Missing / Omitted Details</span>
-                  </h3>
-                  <ul className="space-y-2 text-xs text-slate-300 list-disc list-inside">
-                    {results.unpresentInformation.map((item, idx) => (
-                      <li key={idx} className="leading-relaxed">
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 2: Key Clauses & Risks */}
-        {activeTab === 'clauses' && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">Extracted Key Clauses</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Tab 2: Key Clauses & Risks */}
+          {activeTab === 'clauses' && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '20px',
+              }}
+            >
               {results.clauses.map((clause: ClauseItem) => (
                 <div
                   key={clause.id}
-                  className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 flex flex-col justify-between shadow-sm"
+                  className="card"
+                  style={{
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
                 >
                   <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '8px',
+                      }}
+                    >
                       <div>
-                        <h3 className="font-semibold text-white text-md">{clause.name}</h3>
+                        <h3
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          {clause.name}
+                        </h3>
                         {clause.section && (
-                          <span className="text-xs text-slate-400 font-mono">
-                            {clause.section} {clause.page ? `• Page ${clause.page}` : ''}
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--color-text-muted)',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {clause.section} {clause.page ? `· Page ${clause.page}` : ''}
                           </span>
                         )}
                       </div>
                       {getRiskBadge(clause.riskLevel)}
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                    <p
+                      style={{
+                        fontSize: '14px',
+                        color: 'var(--color-text-secondary)',
+                        lineHeight: 1.5,
+                        marginBottom: '12px',
+                      }}
+                    >
                       {clause.description}
                     </p>
                     {clause.whyAttention && (
-                      <div className="bg-amber-950/20 border-l-2 border-amber-500 p-2.5 rounded text-xs text-amber-200">
+                      <div
+                        style={{
+                          background: 'var(--color-warning-bg)',
+                          borderLeft: '3px solid var(--color-warning)',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          color: 'var(--color-text-primary)',
+                          marginBottom: '12px',
+                        }}
+                      >
                         <strong>Why Attention:</strong> {clause.whyAttention}
                       </div>
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                    <span className="text-slate-400">Grounded Citation</span>
+                  <div
+                    style={{
+                      paddingTop: '12px',
+                      borderTop: '1px solid var(--color-border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-muted)' }}>Grounded Source</span>
                     <button
                       onClick={() =>
                         setSelectedCitation({
@@ -382,7 +636,8 @@ export default function DocumentAnalysisPage({ params }: { params: Promise<{ id:
                           page: clause.page,
                         })
                       }
-                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded transition font-medium"
+                      className="btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
                     >
                       View Source Text ↗
                     </button>
@@ -390,200 +645,435 @@ export default function DocumentAnalysisPage({ params }: { params: Promise<{ id:
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Tab 3: Rights & Obligations */}
-        {activeTab === 'obligations' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold text-white">Party Responsibilities & Duties</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase">
-                    <th className="py-3 px-4">Party</th>
-                    <th className="py-3 px-4">Specific Duty / Obligation</th>
-                    <th className="py-3 px-4">Section</th>
-                    <th className="py-3 px-4">Deadline</th>
-                    <th className="py-3 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                  {results.obligations.map((ob) => (
-                    <tr key={ob.id} className="hover:bg-slate-800/40 transition">
-                      <td className="py-3 px-4 font-semibold text-indigo-400">{ob.party}</td>
-                      <td className="py-3 px-4 leading-relaxed">{ob.duty}</td>
-                      <td className="py-3 px-4 font-mono text-slate-400">
-                        {ob.section || 'General'}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-amber-400">
-                        {ob.deadline || 'Ongoing'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() =>
-                            setSelectedCitation({
-                              title: `${ob.party} Obligation`,
-                              text: ob.duty,
-                              section: ob.section,
-                              page: ob.page,
-                            })
-                          }
-                          className="text-slate-400 hover:text-white underline"
-                        >
-                          Source
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 4: Important Dates */}
-        {activeTab === 'dates' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold text-white">Timeline & Critical Milestones</h2>
-            <div className="space-y-3">
-              {results.importantDates.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          {/* Tab 3: Rights & Obligations */}
+          {activeTab === 'obligations' && (
+            <div className="card" style={{ padding: '24px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
+                Party Responsibilities & Duties
+              </h2>
+              <div style={{ overflowX: 'auto' }}>
+                <table
+                  style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                  }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="px-3 py-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg font-mono text-sm font-bold whitespace-nowrap">
-                      📅 {item.date}
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-slate-200 text-sm">{item.description}</h3>
-                      {item.actionRequired && (
-                        <p className="text-xs text-amber-400 mt-1">
-                          ⚡ Action: {item.actionRequired}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() =>
-                      setSelectedCitation({
-                        title: `Date Milestone: ${item.date}`,
-                        text: item.description,
-                        section: item.section,
-                        page: item.page,
-                      })
-                    }
-                    className="text-xs text-slate-400 hover:text-white underline self-end sm:self-center"
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: '2px solid var(--color-border)',
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '12px',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <th style={{ padding: '12px' }}>Party</th>
+                      <th style={{ padding: '12px' }}>Specific Duty / Obligation</th>
+                      <th style={{ padding: '12px' }}>Section</th>
+                      <th style={{ padding: '12px' }}>Deadline</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.obligations.map((ob) => (
+                      <tr key={ob.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td
+                          style={{
+                            padding: '12px',
+                            fontWeight: 600,
+                            color: 'var(--color-primary)',
+                          }}
+                        >
+                          {ob.party}
+                        </td>
+                        <td style={{ padding: '12px', color: 'var(--color-text-primary)' }}>
+                          {ob.duty}
+                        </td>
+                        <td
+                          style={{
+                            padding: '12px',
+                            color: 'var(--color-text-secondary)',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {ob.section || 'General'}
+                        </td>
+                        <td
+                          style={{
+                            padding: '12px',
+                            color: 'var(--color-warning)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {ob.deadline || 'Ongoing'}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                          <button
+                            onClick={() =>
+                              setSelectedCitation({
+                                title: `${ob.party} Obligation`,
+                                text: ob.duty,
+                                section: ob.section,
+                                page: ob.page,
+                              })
+                            }
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--color-info)',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                            }}
+                          >
+                            Source
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: Important Dates */}
+          {activeTab === 'dates' && (
+            <div className="card" style={{ padding: '24px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
+                Timeline & Critical Milestones
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {results.importantDates.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: 'var(--color-background)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                    }}
                   >
-                    View Citation
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div
+                        style={{
+                          background: 'var(--color-primary-light)',
+                          color: 'var(--color-primary)',
+                          border: '1px solid var(--color-border-strong)',
+                          borderRadius: '6px',
+                          padding: '8px 12px',
+                          fontFamily: 'monospace',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                        }}
+                      >
+                        📅 {item.date}
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '15px', fontWeight: 600 }}>{item.description}</h3>
+                        {item.actionRequired && (
+                          <p
+                            style={{
+                              fontSize: '13px',
+                              color: 'var(--color-warning)',
+                              marginTop: '2px',
+                            }}
+                          >
+                            ⚡ Action: {item.actionRequired}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setSelectedCitation({
+                          title: `Date Milestone: ${item.date}`,
+                          text: item.description,
+                          section: item.section,
+                          page: item.page,
+                        })
+                      }
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-info)',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontSize: '13px',
+                      }}
+                    >
+                      View Citation
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 5: Actionable Guidance */}
+          {activeTab === 'guidance' && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '20px',
+              }}
+            >
+              {/* Recommended Next Steps */}
+              <div className="card" style={{ padding: '20px' }}>
+                <h3
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    color: 'var(--color-success)',
+                    textTransform: 'uppercase',
+                    marginBottom: '16px',
+                  }}
+                >
+                  ✅ Recommended Next Steps
+                </h3>
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  {results.guidance.nextSteps.map((step, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        background: 'var(--color-background)',
+                        padding: '12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {step}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Questions for Lawyer */}
+              <div className="card" style={{ padding: '20px' }}>
+                <h3
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    color: 'var(--color-warning)',
+                    textTransform: 'uppercase',
+                    marginBottom: '16px',
+                  }}
+                >
+                  ⚖️ Questions for Legal Consultation
+                </h3>
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  {results.guidance.lawyerQuestions.map((q, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        background: 'var(--color-background)',
+                        padding: '12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      "{q}"
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Clarifications for Counterparty */}
+              <div className="card" style={{ padding: '20px' }}>
+                <h3
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    color: 'var(--color-info)',
+                    textTransform: 'uppercase',
+                    marginBottom: '16px',
+                  }}
+                >
+                  💬 Counterparty Clarifications
+                </h3>
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  {results.guidance.clarifications.map((item, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        background: 'var(--color-background)',
+                        padding: '12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Grounding Source Citation Slide-Over / Modal */}
+        {selectedCitation && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 1000,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--color-surface)',
+                borderLeft: '1px solid var(--color-border)',
+                maxWidth: '500px',
+                width: '100%',
+                height: '100%',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: 'var(--shadow-elevated)',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px',
+                    borderBottom: '1px solid var(--color-border)',
+                    paddingBottom: '12px',
+                  }}
+                >
+                  <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Source Grounding Citation</h3>
+                  <button
+                    onClick={() => setSelectedCitation(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    ✕
                   </button>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Tab 5: Actionable Guidance */}
-        {activeTab === 'guidance' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Recommended Next Steps */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 shadow-sm">
-              <h3 className="font-bold text-indigo-400 text-sm uppercase tracking-wider flex items-center gap-1.5">
-                <span>✅ Recommended Next Steps</span>
-              </h3>
-              <ul className="space-y-2 text-xs text-slate-300">
-                {results.guidance.nextSteps.map((step, idx) => (
-                  <li
-                    key={idx}
-                    className="bg-slate-800/60 p-3 rounded border border-slate-700/50 leading-relaxed"
+                <div style={{ marginBottom: '16px' }}>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--color-primary)',
+                      textTransform: 'uppercase',
+                    }}
                   >
-                    {step}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    {selectedCitation.title}
+                  </span>
+                  {selectedCitation.section && (
+                    <p
+                      style={{
+                        fontSize: '13px',
+                        color: 'var(--color-text-secondary)',
+                        fontFamily: 'monospace',
+                        marginTop: '4px',
+                      }}
+                    >
+                      Section: {selectedCitation.section}{' '}
+                      {selectedCitation.page ? `· Page ${selectedCitation.page}` : ''}
+                    </p>
+                  )}
+                </div>
 
-            {/* Questions to Ask a Lawyer */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 shadow-sm">
-              <h3 className="font-bold text-amber-400 text-sm uppercase tracking-wider flex items-center gap-1.5">
-                <span>⚖️ Questions for Legal Consultation</span>
-              </h3>
-              <ul className="space-y-2 text-xs text-slate-300">
-                {results.guidance.lawyerQuestions.map((q, idx) => (
-                  <li
-                    key={idx}
-                    className="bg-slate-800/60 p-3 rounded border border-slate-700/50 leading-relaxed"
-                  >
-                    "{q}"
-                  </li>
-                ))}
-              </ul>
-            </div>
+                <div
+                  style={{
+                    background: 'var(--color-background)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    fontSize: '13px',
+                    lineHeight: 1.6,
+                    color: 'var(--color-text-primary)',
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  "{selectedCitation.text}"
+                </div>
+              </div>
 
-            {/* Clarifications for Counterparty */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3 shadow-sm">
-              <h3 className="font-bold text-emerald-400 text-sm uppercase tracking-wider flex items-center gap-1.5">
-                <span>💬 Counterparty Clarifications</span>
-              </h3>
-              <ul className="space-y-2 text-xs text-slate-300">
-                {results.guidance.clarifications.map((item, idx) => (
-                  <li
-                    key={idx}
-                    className="bg-slate-800/60 p-3 rounded border border-slate-700/50 leading-relaxed"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <div
+                style={{
+                  paddingTop: '16px',
+                  borderTop: '1px solid var(--color-border)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
+                <button onClick={() => setSelectedCitation(null)} className="btn-primary">
+                  Close Drawer
+                </button>
+              </div>
             </div>
           </div>
         )}
       </main>
-
-      {/* Grounding Source Citation Slide-Over Modal / Drawer */}
-      {selectedCitation && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-end">
-          <div className="bg-slate-900 border-l border-slate-800 max-w-lg w-full h-full p-6 flex flex-col justify-between shadow-2xl animate-in slide-in-from-right duration-200">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <h3 className="font-bold text-white text-md">Source Grounding Attribution</h3>
-                <button
-                  onClick={() => setSelectedCitation(null)}
-                  className="p-1 text-slate-400 hover:text-white text-lg font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div>
-                <span className="text-xs uppercase font-mono text-indigo-400">
-                  {selectedCitation.title}
-                </span>
-                {selectedCitation.section && (
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">
-                    Section: {selectedCitation.section}{' '}
-                    {selectedCitation.page ? `• Page ${selectedCitation.page}` : ''}
-                  </p>
-                )}
-              </div>
-
-              <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-300 leading-relaxed max-h-96 overflow-y-auto whitespace-pre-wrap">
-                "{selectedCitation.text}"
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800 flex justify-end">
-              <button
-                onClick={() => setSelectedCitation(null)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition"
-              >
-                Close Drawer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+export default function DocumentAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  return (
+    <ProtectedRoute>
+      <AnalysisContent documentId={resolvedParams.id} />
+    </ProtectedRoute>
   );
 }

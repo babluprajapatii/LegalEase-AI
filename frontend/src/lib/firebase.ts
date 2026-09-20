@@ -1,6 +1,6 @@
 'use client';
 
-import { initializeApp, getApps, type FirebaseOptions } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import {
   getAuth,
   type Auth,
@@ -11,27 +11,112 @@ import {
   type User,
 } from 'firebase/auth';
 
-// Firebase configuration from environment variables (NEXT_PUBLIC_ prefix exposed to browser)
-const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDevMockApiKeyForBuild12345678',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'legalease-ai-dev.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'legalease-ai-dev',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'legalease-ai-dev.appspot.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:1234567890:web:abcdef1234567890',
-};
+const REQUIRED_ENV_VARS = [
+  'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'NEXT_PUBLIC_FIREBASE_APP_ID',
+] as const;
 
-// Initialize Firebase app (only once)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Placeholders that indicate unconfigured environment variables
+const PLACEHOLDER_PATTERNS = ['AIzaSyDevMock', 'YOUR_', 'mock-', 'placeholder'];
 
-// Export auth instance
-export const auth: Auth = getAuth(app);
+export interface FirebaseValidationResult {
+  valid: boolean;
+  missingVars: string[];
+}
+
+/**
+ * Safely validates required Firebase NEXT_PUBLIC environment variables.
+ * Returns missing variable names WITHOUT exposing any secret values.
+ */
+export function validateFirebaseConfig(): FirebaseValidationResult {
+  const missingVars: string[] = [];
+
+  const configMap: Record<(typeof REQUIRED_ENV_VARS)[number], string | undefined> = {
+    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+
+  for (const varName of REQUIRED_ENV_VARS) {
+    const val = configMap[varName];
+    if (!val || val.trim() === '' || PLACEHOLDER_PATTERNS.some((p) => val.includes(p))) {
+      missingVars.push(varName);
+    }
+  }
+
+  return {
+    valid: missingVars.length === 0,
+    missingVars,
+  };
+}
+
+function getFirebaseConfig(): FirebaseOptions | null {
+  const { valid, missingVars } = validateFirebaseConfig();
+  if (!valid) {
+    if (typeof window !== 'undefined') {
+      console.warn(
+        `[LegalEase-AI] Missing or unconfigured Firebase variables: ${missingVars.join(', ')}. Please check your .env file.`,
+      );
+    }
+    return null;
+  }
+
+  return {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  };
+}
+
+let appInstance: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
+
+const initialConfig = getFirebaseConfig();
+
+if (initialConfig) {
+  appInstance = getApps().length === 0 ? initializeApp(initialConfig) : getApps()[0];
+  authInstance = getAuth(appInstance);
+} else if (getApps().length > 0) {
+  appInstance = getApps()[0];
+  authInstance = getAuth(appInstance);
+}
+
 export const googleProvider = new GoogleAuthProvider();
 
-// Auth helper functions
+export const getFirebaseAuth = (): Auth | null => {
+  if (!authInstance && typeof window !== 'undefined') {
+    const freshConfig = getFirebaseConfig();
+    if (freshConfig) {
+      appInstance = getApps().length === 0 ? initializeApp(freshConfig) : getApps()[0];
+      authInstance = getAuth(appInstance);
+    }
+  }
+  return authInstance;
+};
+
+// Export auth instance for direct access when initialized
+export const auth = authInstance;
+
 export const signInWithGoogle = async () => {
+  const currentAuth = getFirebaseAuth();
+  if (!currentAuth) {
+    const { missingVars } = validateFirebaseConfig();
+    const errorMsg = `Firebase is not properly configured. Missing required variables: ${missingVars.join(', ')}. Check your .env file.`;
+    return { user: null, error: new Error(errorMsg) };
+  }
+
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(currentAuth, googleProvider);
     return { user: result.user, error: null };
   } catch (error) {
     console.error('Google sign-in error:', error);
@@ -40,8 +125,13 @@ export const signInWithGoogle = async () => {
 };
 
 export const signOutUser = async () => {
+  const currentAuth = getFirebaseAuth();
+  if (!currentAuth) {
+    return { error: null };
+  }
+
   try {
-    await signOut(auth);
+    await signOut(currentAuth);
     return { error: null };
   } catch (error) {
     console.error('Sign out error:', error);
@@ -50,16 +140,24 @@ export const signOutUser = async () => {
 };
 
 export const onAuthStateChangedListener = (callback: (user: User | null) => void) => {
-  return onAuthStateChanged(auth, callback);
+  const currentAuth = getFirebaseAuth();
+  if (!currentAuth) {
+    callback(null);
+    return () => {};
+  }
+  return onAuthStateChanged(currentAuth, callback);
 };
 
 export const getCurrentUser = (): User | null => {
-  return auth.currentUser;
+  const currentAuth = getFirebaseAuth();
+  return currentAuth ? currentAuth.currentUser : null;
 };
 
 export const getUserToken = async (): Promise<string | null> => {
   try {
-    const user = auth.currentUser;
+    const currentAuth = getFirebaseAuth();
+    if (!currentAuth) return null;
+    const user = currentAuth.currentUser;
     if (!user) return null;
     return await user.getIdToken();
   } catch {

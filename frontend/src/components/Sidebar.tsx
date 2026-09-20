@@ -4,19 +4,27 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
+import {
+  IconDashboard,
+  IconDocument,
+  IconUpload,
+  IconCompare,
+  IconHistory,
+  IconSettings,
+} from './ui/Icons';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: '⊞' },
-  { href: '/documents', label: 'Documents', icon: '📄' },
-  { href: '/upload', label: 'Upload', icon: '⬆' },
-  { href: '/compare', label: 'Compare', icon: '⇅' },
-  { href: '/history', label: 'History', icon: '🕐' },
-  { href: '/settings', label: 'Settings', icon: '⚙' },
+  { href: '/dashboard', label: 'Dashboard', icon: IconDashboard },
+  { href: '/documents', label: 'Documents', icon: IconDocument },
+  { href: '/upload', label: 'Upload', icon: IconUpload },
+  { href: '/compare', label: 'Compare', icon: IconCompare },
+  { href: '/history', label: 'History', icon: IconHistory },
+  { href: '/settings', label: 'Settings', icon: IconSettings },
 ];
 
 /**
- * Left sidebar navigation matching Figma 03-dashboard design.
- * Shows logo, upload button, nav items, and user profile area.
+ * Left sidebar navigation matching Figma UI/UX design.
+ * Shows stroke-icon branding, upload CTA button, active route highlights, and user profile drawer.
  */
 export default function Sidebar() {
   const { user, signOut } = useAuth();
@@ -31,7 +39,7 @@ export default function Sidebar() {
     try {
       await signOut();
     } catch {
-      // Error handled in auth context
+      // Handled in auth context
     }
   };
 
@@ -40,31 +48,36 @@ export default function Sidebar() {
       {/* Brand */}
       <div className="sidebar-brand">
         <div className="sidebar-logo" aria-hidden="true">
-          §
+          <IconDocument size={20} />
         </div>
         <span className="sidebar-brand-name">LegalEase-AI</span>
       </div>
 
       {/* Upload CTA */}
       <Link href="/upload" className="sidebar-upload-btn" aria-label="Upload document">
-        <span aria-hidden="true">⬆</span> Upload
+        <IconUpload size={18} aria-hidden="true" />
+        <span>Upload</span>
       </Link>
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`sidebar-nav-item ${pathname === item.href || pathname?.startsWith(item.href + '/') ? 'active' : ''}`}
-            aria-current={pathname === item.href ? 'page' : undefined}
-          >
-            <span className="sidebar-nav-icon" aria-hidden="true">
-              {item.icon}
-            </span>
-            {item.label}
-          </Link>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/dashboard' && pathname?.startsWith(item.href));
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       {/* User Profile */}

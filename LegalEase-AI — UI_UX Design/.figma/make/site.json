@@ -1,0 +1,10 @@
+{
+  "description": "Engage in daily trivia challenges, track your rankings, and earn achievement badges to showcase your knowledge and compete with others.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

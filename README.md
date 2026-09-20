@@ -53,13 +53,16 @@ Full end-to-end document ingestion pipeline and frontend user interface:
 - **Signed-URL Document Upload** — Direct-to-GCS upload flow via backend signed URLs (`POST /api/documents/upload`), enforcing 10 MB file limits, content type validation, and filename sanitization.
 - **Text Extraction & Normalization** — Extraction service supporting PDF (pdf-parse), DOCX (mammoth), and TXT files with magic-byte header verification, text cleaning, and <=3,000 word chunking.
 - **Firestore Metadata Storage** — Full document lifecycle tracking (`uploading` → `validating` → `extracting` → `complete` / `failed`) with document listing and server-side ownership filters.
-- **Frontend UI (Figma Aligned)** — Modern responsive design system matching Figma visual specifications:
-  - Landing page (`/`) with branding, hero CTAs, and Google Sign-In trigger.
-  - Login page (`/login`) with Google OAuth authentication and responsive card.
-  - Sidebar layout (`/dashboard`) with navigation, logo, upload CTA, and user profile drawer.
-  - Recent Documents list with live search, file metadata, and status badges.
-  - Upload page (`/upload`) featuring drag-and-drop zone, client file validation, upload progress bar, multi-stage processing indicators, error handling, and real sample document loader (`Sample_Lease_Agreement_2024.txt`).
-  - Documents list (`/documents`) showing user-owned uploaded files with status tracking.
+- **Frontend UI (Figma Aligned)** — Full pixel-perfect design system alignment with exported Figma Make UI/UX specifications:
+  - SVG stroke icon library (`Icons.tsx`) matching Figma visual tokens.
+  - Landing page (`/`) with branding, hero CTAs, capability grid, and Google Sign-In trigger.
+  - Login page (`/login`) with Google OAuth authentication card.
+  - Responsive Sidebar navigation layout with active indicators and user drawer.
+  - Dashboard (`/dashboard`) with quick-action tiles, search bar, recent document list, and activity feed.
+  - Upload page (`/upload`) featuring dashed dropzone, multi-stage processing indicators, and sample document loader.
+  - Documents list (`/documents`) with category filter pills (`all`, `analyzed`, `processing`, `uploaded`).
+  - Compare page (`/compare`), History (`/history`), and Settings (`/settings`) matching Figma screens.
+- **Local Environment Setup** — Clean `frontend/.env.local` configuration reading client-side Firebase environment variables (`NEXT_PUBLIC_FIREBASE_*`) with non-exposing validation (`validateFirebaseConfig`).
 
 ### ✅ Phase 3 — GenAI Legal Analysis & AI Orchestration (code-verified)
 
