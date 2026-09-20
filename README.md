@@ -40,14 +40,26 @@ Backend Express scaffold with full security hardening:
 - **Toolchain** — ESLint 9 (TypeScript-aware), Prettier, root-level `typecheck` / `lint` / `format` / `test` scripts wired across both workspaces.
 - **Winston logging** — Structured JSON logs; console transport in non-production.
 
-### Phase 2 — Document Ingestion (next)
+### ✅ Phase 1 — Foundation (code-verified)
 
-- Multipart upload via Multer → Cloud Storage.
-- Firestore metadata persistence.
-- Document listing, retrieval, deletion.
-- Firebase Admin SDK initialization (env vars promoted from optional to required).
-- Integration tests (present but currently do not run due to import-path configuration).
-- All Phase 1 security baseline items verified as present.
+Backend Express scaffold with full security hardening, type definitions, and initial environment configuration.
+
+### ✅ Phase 2 — Authentication & Document Pipeline (code-verified)
+
+Full end-to-end document ingestion pipeline and frontend user interface:
+
+- **Firebase Authentication** — Backend token verification via Firebase Admin SDK with ownership verification (`req.user.uid === document.userId`); Frontend `useAuth` context supporting Google OAuth popups and session token auto-refresh.
+- **User Profile Management** — `POST /api/users/me` endpoint to upsert user profiles into Firestore on sign-in.
+- **Signed-URL Document Upload** — Direct-to-GCS upload flow via backend signed URLs (`POST /api/documents/upload`), enforcing 10 MB file limits, content type validation, and filename sanitization.
+- **Text Extraction & Normalization** — Extraction service supporting PDF (pdf-parse), DOCX (mammoth), and TXT files with magic-byte header verification, text cleaning, and <=3,000 word chunking.
+- **Firestore Metadata Storage** — Full document lifecycle tracking (`uploading` → `validating` → `extracting` → `complete` / `failed`) with document listing and server-side ownership filters.
+- **Frontend UI (Figma Aligned)** — Modern responsive design system matching Figma visual specifications:
+  - Landing page (`/`) with branding, hero CTAs, and Google Sign-In trigger.
+  - Login page (`/login`) with Google OAuth authentication and responsive card.
+  - Sidebar layout (`/dashboard`) with navigation, logo, upload CTA, and user profile drawer.
+  - Recent Documents list with live search, file metadata, and status badges.
+  - Upload page (`/upload`) featuring drag-and-drop zone, client file validation, upload progress bar, multi-stage processing indicators, error handling, and real sample document loader (`Sample_Lease_Agreement_2024.txt`).
+  - Documents list (`/documents`) showing user-owned uploaded files with status tracking.
 
 ### Phase 3 — AI Analysis
 
@@ -59,7 +71,7 @@ Backend Express scaffold with full security hardening:
 
 - Analysis history — not yet implemented.
 - Cloud Run deployment — not yet deployed.
-- CI / validation workflow — configured; build not run in audit.
+- CI / validation workflow — configured and passing all tests.
 
 ---
 

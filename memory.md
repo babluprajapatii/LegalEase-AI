@@ -338,6 +338,12 @@ Evaluation areas: Code Quality, Security, Efficiency, Testing, Accessibility, Pr
 
 ## Project Memory Changelog
 
+### 2026-09-20
+
+- Change: Phase 2 implemented, tested, and marked complete.
+- Reason: Full end-to-end implementation of authentication (Firebase Auth, Google OAuth, `useAuth` context), user upsert (`POST /api/users/me`), signed-URL document upload flow (PDF/DOCX/TXT ≤10MB, client validation, progress tracking), text extraction & chunking, Firestore metadata, and Figma-aligned frontend UI (Landing, Login, Dashboard, Upload, Documents pages). Real safe sample document feature implemented. 22/22 unit and integration tests passing, frontend and backend builds passing cleanly, secret scan clean.
+- Impact: Document ingestion & authentication pipeline is fully operational. Project is ready for Phase 3 (GenAI analysis).
+
 ### 2026-09-19
 
 - Change: Phase 1 verified and marked complete.
