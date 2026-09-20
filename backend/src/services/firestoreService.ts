@@ -1,4 +1,5 @@
 import { getFirestoreDb } from '../config/firebase';
+import { env } from '../config/env';
 import { logger } from '../utils/logging';
 import { DocumentMetadata } from '../types';
 
@@ -20,13 +21,13 @@ export class FirestoreService {
    * Helper to check if Firestore instance is accessible and credentials exist.
    */
   private isFirestoreAvailable(): boolean {
-    if (process.env.NODE_ENV === 'test') {
+    if (env.NODE_ENV === 'test') {
       return false;
     }
 
     if (
-      !process.env.FIREBASE_PRIVATE_KEY &&
-      !process.env.FIREBASE_CLIENT_EMAIL &&
+      !env.FIREBASE_PRIVATE_KEY &&
+      !env.FIREBASE_CLIENT_EMAIL &&
       !process.env.GOOGLE_APPLICATION_CREDENTIALS
     ) {
       return false;
@@ -231,5 +232,65 @@ export class FirestoreService {
         logger.warn('Firestore delete document failed', { error });
       }
     }
+  }
+
+  private analysisStore: Map<string, any> = new Map();
+
+  /**
+   * Stores an analysis record in `analyses` collection.
+   */
+  async createAnalysis(record: any): Promise<void> {
+    this.analysisStore.set(record.id, record);
+    // Also associate with in-memory document record if present
+    const doc = this.inMemoryStore.get(record.documentId);
+    if (doc) {
+      doc.analysisIds = doc.analysisIds || [];
+      if (!doc.analysisIds.includes(record.id)) {
+        doc.analysisIds.push(record.id);
+      }
+    }
+
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        await db.collection('analyses').doc(record.id).set(record);
+        logger.info('Analysis record saved to Firestore', {
+          analysisId: record.id,
+          documentId: record.documentId,
+        });
+      } catch (error) {
+        logger.warn('Firestore create analysis failed, using in-memory fallback', { error });
+      }
+    }
+  }
+
+  /**
+   * Retrieves an analysis record by document ID.
+   */
+  async getAnalysisByDocumentId(documentId: string): Promise<any | null> {
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        const snapshot = await db
+          .collection('analyses')
+          .where('documentId', '==', documentId)
+          .limit(1)
+          .get();
+
+        if (!snapshot.empty) {
+          return snapshot.docs[0].data();
+        }
+      } catch (error) {
+        logger.warn('Firestore get analysis by document ID failed, using fallback', { error });
+      }
+    }
+
+    for (const record of this.analysisStore.values()) {
+      if (record.documentId === documentId) {
+        return record;
+      }
+    }
+
+    return null;
   }
 }

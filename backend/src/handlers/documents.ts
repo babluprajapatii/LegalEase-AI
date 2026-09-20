@@ -241,4 +241,99 @@ router.delete(
   },
 );
 
+/**
+ * POST /api/documents/:id/analyze
+ * Triggers GenAI document analysis and persists output.
+ */
+router.post(
+  '/:id/analyze',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const documentId = Array.isArray(req.params.id)
+        ? req.params.id[0]!
+        : (req.params.id as string);
+
+      const analysisRecord = await documentService.analyzeDocument(documentId, req.user.uid);
+
+      res.status(200).json({
+        success: true,
+        data: analysisRecord,
+        message: 'Document analysis completed successfully',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+
+      logger.error('Document analysis request failed', {
+        documentId: req.params.id,
+        error: message,
+      });
+      res.status(500).json({
+        success: false,
+        error: message || 'Failed to complete document analysis',
+      });
+    }
+  },
+);
+
+/**
+ * GET /api/documents/:id/analysis
+ * Fetches existing AI analysis result for document.
+ */
+router.get(
+  '/:id/analysis',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const documentId = Array.isArray(req.params.id)
+        ? req.params.id[0]!
+        : (req.params.id as string);
+
+      const analysisRecord = await documentService.getDocumentAnalysis(documentId, req.user.uid);
+      if (!analysisRecord) {
+        res
+          .status(404)
+          .json({ success: false, error: 'Analysis record not found for this document' });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: analysisRecord,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+
+      logger.error('Get document analysis failed', { documentId: req.params.id, error: message });
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  },
+);
+
 export default router;

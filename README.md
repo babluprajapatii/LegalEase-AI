@@ -61,17 +61,20 @@ Full end-to-end document ingestion pipeline and frontend user interface:
   - Upload page (`/upload`) featuring drag-and-drop zone, client file validation, upload progress bar, multi-stage processing indicators, error handling, and real sample document loader (`Sample_Lease_Agreement_2024.txt`).
   - Documents list (`/documents`) showing user-owned uploaded files with status tracking.
 
-### Phase 3 — AI Analysis
+### ✅ Phase 3 — GenAI Legal Analysis & AI Orchestration (code-verified)
 
-- Backend-only Gemini / Vertex AI integration — not yet implemented.
-- Document Q&A, comparison, risk detection, plain-language simplification — not yet implemented.
-- Structured, citation-aware analysis results — not yet implemented.
+Grounded GenAI document analysis pipeline and interactive frontend report interface:
 
-### Phase 4 — History, UX, and Deployment
+- **Gemini / Vertex AI Integration** — Server-side AI orchestration layer (`backend/src/services/aiService.ts`) calling Google Generative AI (`@google/generative-ai`) with structured JSON schema output and retry logic.
+- **AI Safety & Legal Fencing** — System prompts defining non-advisory educational role, prompt fencing with `<document_content>` isolation tags, and prompt-injection defense against malicious document payloads.
+- **Output Validation & Grounding** — Strict Zod schema validation on AI responses before saving to Firestore or returning to client; mandatory educational legal disclaimer banner attached to all results.
+- **Fallback Engine** — Rule-based grounded extraction fallback for offline/unconfigured local development and testing without failing builds.
+- **Frontend Analysis View (`/documents/[id]`)** — Figma-aligned analysis report interface featuring tabbed navigation (Executive Summary, Key Clauses & Risks, Obligations, Important Dates, Actionable Guidance), risk level badges (High/Medium/Low), and an interactive Grounding Citation Drawer.
 
-- Analysis history — not yet implemented.
-- Cloud Run deployment — not yet deployed.
-- CI / validation workflow — configured and passing all tests.
+### Phase 4 — Interactive Features, History & Deployment
+
+- Document Q&A, side-by-side comparison, and history search — coming in Phase 4.
+- Cloud Run deployment — coming in Phase 4.
 
 ---
 

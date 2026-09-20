@@ -105,3 +105,30 @@ export function uploadToStorage(
     xhr.send(file);
   });
 }
+
+export async function analyzeDocument(token: string, documentId: string) {
+  const response = await fetch(`${API_URL}/documents/${documentId}/analyze`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Analysis failed');
+  }
+
+  return response.json();
+}
+
+export async function getAnalysis(token: string, documentId: string) {
+  const response = await fetch(`${API_URL}/documents/${documentId}/analysis`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Could not fetch analysis');
+  }
+
+  return response.json();
+}

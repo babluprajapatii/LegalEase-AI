@@ -7,10 +7,10 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1).default('dev-secret-change-in-production'),
 
   // Firebase Admin & GCP Storage Configuration
-  FIREBASE_PROJECT_ID: z.string().optional().default('legalease-ai-dev'),
+  FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
-  GCS_BUCKET_NAME: z.string().optional().default('legalease-ai-documents-dev'),
+  GCS_BUCKET_NAME: z.string().optional(),
 
   // Frontend Firebase Public Config (for context reference)
   NEXT_PUBLIC_FIREBASE_API_KEY: z.string().optional(),

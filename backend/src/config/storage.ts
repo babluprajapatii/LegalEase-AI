@@ -6,7 +6,7 @@ import { logger } from '../utils/logging';
 let storageClient: Storage | null = null;
 
 export function getGCSBucket() {
-  const bucketName = env.GCS_BUCKET_NAME || 'legalease-ai-documents-dev';
+  const bucketName = env.GCS_BUCKET_NAME || '';
 
   try {
     return getStorageBucket();

@@ -5,20 +5,25 @@ import { SecurityValidationResult } from '../shared/types/document';
 import { StorageService } from './storageService';
 import { ExtractionService } from './extractionService';
 import { FirestoreService, ExtendedDocumentMetadata } from './firestoreService';
+import { AIService } from './aiService';
+import { AnalysisDocumentRecord } from '../types';
 
 export class DocumentService {
   private storageService: StorageService;
   private extractionService: ExtractionService;
   private firestoreService: FirestoreService;
+  private aiService: AIService;
 
   constructor(
     storageService = new StorageService(),
     extractionService = new ExtractionService(),
     firestoreService = new FirestoreService(),
+    aiService = new AIService(),
   ) {
     this.storageService = storageService;
     this.extractionService = extractionService;
     this.firestoreService = firestoreService;
+    this.aiService = aiService;
   }
 
   /**
@@ -303,5 +308,57 @@ export class DocumentService {
 
     await this.firestoreService.deleteDocument(documentId);
     logger.info('Document deleted completely', { documentId, userId });
+  }
+
+  /**
+   * Triggers GenAI document analysis and persists analysis results.
+   */
+  async analyzeDocument(documentId: string, userId: string): Promise<AnalysisDocumentRecord> {
+    const doc = await this.getDocumentById(documentId, userId);
+
+    if (!doc.extractedText && doc.processingStatus !== ProcessingStatus.COMPLETE) {
+      throw new Error('Document extraction incomplete or failed; cannot perform AI analysis');
+    }
+
+    await this.firestoreService.updateDocument(documentId, {
+      processingStatus: ProcessingStatus.ANALYSIS,
+    });
+
+    try {
+      const record = await this.aiService.analyzeDocument(
+        documentId,
+        userId,
+        doc.extractedText || '',
+        doc.filename,
+      );
+
+      await this.firestoreService.createAnalysis(record);
+      await this.firestoreService.updateDocument(documentId, {
+        processingStatus: ProcessingStatus.COMPLETE,
+      });
+
+      return record;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('Document AI analysis failed', { documentId, error: message });
+
+      await this.firestoreService.updateDocument(documentId, {
+        processingStatus: ProcessingStatus.FAILED,
+        errorMessage: message,
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves existing analysis record for document.
+   */
+  async getDocumentAnalysis(
+    documentId: string,
+    userId: string,
+  ): Promise<AnalysisDocumentRecord | null> {
+    await this.getDocumentById(documentId, userId); // Ownership check
+    return await this.firestoreService.getAnalysisByDocumentId(documentId);
   }
 }

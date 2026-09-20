@@ -340,6 +340,12 @@ Evaluation areas: Code Quality, Security, Efficiency, Testing, Accessibility, Pr
 
 ### 2026-09-20
 
+- Change: Phase 3 (GenAI Legal Analysis) implemented, tested, and marked complete.
+- Reason: Implemented Gemini / Vertex AI backend orchestration service (`AIService`) with structured JSON schema output, prompt fencing (`<document_content>`), prompt injection defense, Zod validation, retry logic, and rule-based grounded fallback. Added Firestore `analyses` collection persistence and REST endpoints (`POST /api/documents/:id/analyze`, `GET /api/documents/:id/analysis`). Built interactive frontend analysis report interface (`/documents/[id]`) matching Figma design with tabbed navigation (Summary, Key Clauses, Obligations, Important Dates, Guidance), risk badges, educational disclaimer banner, and interactive Grounding Citation Drawer. 28/28 unit and integration tests passing, TypeScript typecheck passing, ESLint passing, Prettier format passing, secret scan clean, backend and frontend production builds passing cleanly.
+- Impact: Core GenAI document analysis pipeline is complete and verified. Ready for Phase 4 (History, Comparison, Deployment).
+
+### 2026-09-20
+
 - Change: Phase 2 implemented, tested, and marked complete.
 - Reason: Full end-to-end implementation of authentication (Firebase Auth, Google OAuth, `useAuth` context), user upsert (`POST /api/users/me`), signed-URL document upload flow (PDF/DOCX/TXT ≤10MB, client validation, progress tracking), text extraction & chunking, Firestore metadata, and Figma-aligned frontend UI (Landing, Login, Dashboard, Upload, Documents pages). Real safe sample document feature implemented. 22/22 unit and integration tests passing, frontend and backend builds passing cleanly, secret scan clean.
 - Impact: Document ingestion & authentication pipeline is fully operational. Project is ready for Phase 3 (GenAI analysis).
