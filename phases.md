@@ -367,7 +367,7 @@ Implement real Gemini/Vertex AI integration: document analysis produces structur
 
 ### Goals
 
-- [x] Gemini/Vertex AI backend integration working (`@google/generative-ai`)
+- [x] Gemini/Vertex AI backend integration working (`@google-cloud/vertexai`)
 - [x] AI orchestration layer in backend (`backend/src/services/aiService.ts`)
 - [x] Document analysis prompt producing structured JSON
 - [x] System prompt defines AI role (educational only, not a lawyer)
@@ -384,7 +384,7 @@ Implement real Gemini/Vertex AI integration: document analysis produces structur
 
 #### Gemini Integration (MUST HAVE)
 
-- [x] Create `aiService.ts` in backend: Gemini API calls via Vertex AI / Generative AI SDK
+- [x] Create `aiService.ts` in backend: Gemini API calls via Vertex AI SDK exclusively
 - [x] System prompt: educational purpose only, not a lawyer, refuse definitive legal advice
 - [x] Document analysis prompt: summary, key clauses, obligations, dates, risks, next steps
 - [x] Structured JSON output prompt with schema (per architecture.md §6.2, §7.1)
@@ -430,7 +430,7 @@ Implement real Gemini/Vertex AI integration: document analysis produces structur
 
 ### Features/Components Built
 
-- `backend/src/services/aiService.ts`: Gemini integration, prompt fencing, Zod validation, retry logic, grounded fallback generator.
+- `backend/src/services/aiService.ts`: Vertex AI integration, prompt fencing, Zod validation, retry logic, grounded fallback generator.
 - `backend/src/services/firestoreService.ts`: `createAnalysis` and `getAnalysisByDocumentId` methods for `analyses` collection.
 - `backend/src/services/documentService.ts`: `analyzeDocument` and `getDocumentAnalysis` orchestration logic.
 - `backend/src/handlers/documents.ts`: `POST /api/documents/:id/analyze` and `GET /api/documents/:id/analysis` API endpoints.
@@ -441,11 +441,11 @@ Implement real Gemini/Vertex AI integration: document analysis produces structur
 
 ### Deliverables
 
-- [x] Gemini API integration with structured JSON schema output
+- [x] Vertex AI API integration with structured JSON schema output
 - [x] AI orchestration service on backend with prompt injection defenses
 - [x] Firestore `analyses` collection persistence & retrieval
 - [x] Interactive Document Analysis Page matching Figma design (`/documents/[id]`)
-- [x] Unit and integration test suites passing (28 tests total)
+- [x] Unit and integration test suites passing (30 tests total)
 
 ### Definition of Done
 
@@ -463,7 +463,7 @@ Implement real Gemini/Vertex AI integration: document analysis produces structur
 
 ### Exit Criteria
 
-- Gemini analysis produces valid structured JSON for uploaded documents
+- Vertex AI analysis produces valid structured JSON for uploaded documents
 - AI safety rules enforced (no invented clauses, no legal advice, educational language)
 - Source attribution present on all findings
 - Malformed AI output handled gracefully

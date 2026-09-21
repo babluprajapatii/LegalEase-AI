@@ -20,8 +20,10 @@ const envSchema = z.object({
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
 
-  // Phase 3 Gemini API Key
-  GEMINI_API_KEY: z.string().optional(),
+  // Phase 3 Gemini / Vertex AI Configuration
+  GCP_PROJECT_ID: z.string().optional(),
+  GCP_LOCATION: z.string().default('us-central1'),
+  VERTEX_AI_MODEL: z.string().default('gemini-1.5-pro'),
 });
 
 function validateEnv() {

@@ -12,6 +12,7 @@
     "format:fix": "prettier --write .",
     "test": "npx tsx --test tests/**/*.test.ts",
     "secret-scan": "node scripts/secret-scan.js",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
     "prepare": "npm run lint && npm run typecheck && npm run format"
   },
   "devDependencies": {

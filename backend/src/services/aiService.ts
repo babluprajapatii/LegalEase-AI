@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { VertexAI } from '@google-cloud/vertexai';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env';
@@ -76,12 +76,26 @@ const analysisSchema = z.object({
 });
 
 export class AIService {
-  private genAI: GoogleGenerativeAI | null = null;
-  private modelName = 'gemini-1.5-pro';
+  private vertexAI: VertexAI | null = null;
+  private modelName: string;
 
   constructor() {
-    if (env.GEMINI_API_KEY) {
-      this.genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    this.modelName = env.VERTEX_AI_MODEL || 'gemini-1.5-pro';
+
+    const projectId = env.GCP_PROJECT_ID || env.FIREBASE_PROJECT_ID;
+    if (projectId) {
+      try {
+        this.vertexAI = new VertexAI({
+          project: projectId,
+          location: env.GCP_LOCATION || 'us-central1',
+        });
+        logger.info('Initialized Google Cloud Vertex AI SDK', {
+          projectId,
+          location: env.GCP_LOCATION,
+        });
+      } catch (err) {
+        logger.warn('Failed to initialize Vertex AI client', { err });
+      }
     }
   }
 
@@ -178,7 +192,7 @@ Analyze the document above and output ONLY valid JSON matching this structure:
   }
 
   /**
-   * Performs document analysis using Gemini API (with retries and grounded fallback).
+   * Performs document analysis using Vertex AI or Gemini API (with retries and grounded fallback).
    */
   async analyzeDocument(
     documentId: string,
@@ -192,17 +206,21 @@ Analyze the document above and output ONLY valid JSON matching this structure:
     let rawJsonResponse: string | null = null;
     let promptTokens = 0;
     let candidateTokens = 0;
+    let usedProvider = 'rule-based-grounded-fallback';
 
-    if (this.genAI) {
-      const maxRetries = 2;
+    const maxRetries = 2;
+
+    // 1. Try Vertex AI SDK if initialized
+    if (this.vertexAI) {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          logger.info(`Sending document analysis request to Gemini (attempt ${attempt + 1})`, {
+          logger.info(`Sending document analysis request to Vertex AI (attempt ${attempt + 1})`, {
             documentId,
             userId,
+            model: this.modelName,
           });
 
-          const model = this.genAI.getGenerativeModel({
+          const generativeModel = this.vertexAI.getGenerativeModel({
             model: this.modelName,
             generationConfig: {
               responseMimeType: 'application/json',
@@ -210,28 +228,31 @@ Analyze the document above and output ONLY valid JSON matching this structure:
             },
           });
 
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          rawJsonResponse = response.text();
+          const resp = await generativeModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          });
 
-          if (response.usageMetadata) {
-            promptTokens = response.usageMetadata.promptTokenCount || 0;
-            candidateTokens = response.usageMetadata.candidatesTokenCount || 0;
+          const candidates = resp.response.candidates;
+          if (candidates && candidates.length > 0 && candidates[0].content?.parts?.[0]?.text) {
+            rawJsonResponse = candidates[0].content.parts[0].text;
+            usedProvider = `vertex-ai:${this.modelName}`;
+            if (resp.response.usageMetadata) {
+              promptTokens = resp.response.usageMetadata.promptTokenCount || 0;
+              candidateTokens = resp.response.usageMetadata.candidatesTokenCount || 0;
+            }
+            break;
           }
-
-          if (rawJsonResponse) break;
         } catch (error) {
-          logger.warn(`Gemini API call failed on attempt ${attempt + 1}`, { documentId, error });
-          if (attempt === maxRetries) {
-            logger.error('All Gemini API retries failed, using grounded fallback analysis', {
-              documentId,
-            });
-          } else {
+          logger.warn(`Vertex AI call failed on attempt ${attempt + 1}`, { documentId, error });
+          if (attempt < maxRetries) {
             await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
           }
         }
       }
     }
+
+    // 2. No Gemini API fallback - Phase 3 requires Vertex AI exclusively
+    // If Vertex AI fails, fall through to the grounded rule-based fallback
 
     let parsedOutput: AnalysisOutput;
 
@@ -272,7 +293,7 @@ Analyze the document above and output ONLY valid JSON matching this structure:
       userId,
       timestamp: new Date().toISOString(),
       processingTimeMs,
-      modelName: this.genAI ? this.modelName : 'rule-based-grounded-fallback',
+      modelName: usedProvider,
       promptTokens,
       candidateTokens,
       results: parsedOutput,

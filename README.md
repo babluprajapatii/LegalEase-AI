@@ -68,11 +68,13 @@ Full end-to-end document ingestion pipeline and frontend user interface:
 
 Grounded GenAI document analysis pipeline and interactive frontend report interface:
 
-- **Gemini / Vertex AI Integration** — Server-side AI orchestration layer (`backend/src/services/aiService.ts`) calling Google Generative AI (`@google/generative-ai`) with structured JSON schema output and retry logic.
-- **AI Safety & Legal Fencing** — System prompts defining non-advisory educational role, prompt fencing with `<document_content>` isolation tags, and prompt-injection defense against malicious document payloads.
-- **Output Validation & Grounding** — Strict Zod schema validation on AI responses before saving to Firestore or returning to client; mandatory educational legal disclaimer banner attached to all results.
+- **Google Cloud Vertex AI Integration** — Server-side AI orchestration layer (`backend/src/services/aiService.ts`) using Google Cloud Vertex AI SDK (`@google-cloud/vertexai`) exclusively — no Gemini Developer API fallback — with structured JSON schema output, and retry logic with exponential backoff.
+- **AI Safety & Legal Fencing** — System prompts defining non-advisory educational role ("not a lawyer"), prompt fencing with `<document_content>` isolation tags, and prompt-injection defense against malicious document payloads.
+- **Output Validation & Grounding** — Strict Zod schema validation on AI responses before saving to Firestore or returning to client; mandatory educational legal disclaimer banner attached to all results; uncertainty and `unpresentInformation` tracking.
 - **Fallback Engine** — Rule-based grounded extraction fallback for offline/unconfigured local development and testing without failing builds.
+- **Firestore Persistence & API Endpoints** — `analyses` collection integration with `POST /api/documents/:id/analyze` and `GET /api/documents/:id/analysis` endpoints with server-side document ownership enforcement.
 - **Frontend Analysis View (`/documents/[id]`)** — Figma-aligned analysis report interface featuring tabbed navigation (Executive Summary, Key Clauses & Risks, Obligations, Important Dates, Actionable Guidance), risk level badges (High/Medium/Low), and an interactive Grounding Citation Drawer.
+- **Verified Quality Gates** — 30/30 unit and integration tests passing, 0 TypeScript errors, 100% Prettier formatting compliance, secret scan clean, and production builds succeeding.
 
 ### Phase 4 — Interactive Features, History & Deployment
 
@@ -231,55 +233,58 @@ npm run typecheck   # TypeScript — backend + frontend
 npm run lint        # ESLint 9 across all workspaces
 npm run format      # Prettier check
 npm run format:fix  # Prettier fix
-npm run test        # tsx test runner — 16 tests across unit + integration
+npm run test        # tsx test runner — 30 tests across unit + integration
 npm run secret-scan # Cross-platform Node.js secret scanner
 ```
 
-### Phase 1 Verification Results
+### Phase 3 Verification Results
 
 ```
 npm run typecheck   → ✅ 0 errors (backend + frontend)
-npm run lint        → ✅ 0 errors  (84 warnings — no-explicit-any / no-unused-vars in stub placeholders)
+npm run lint        → ✅ 0 errors
 npm run format      → ✅ All files clean
-npm run test        → ✅ 16 pass, 0 fail (4 auth, 7 doc validation, 4 extraction, 1 integration pipeline)
+npm run test        → ✅ 30 pass, 0 fail (unit + integration + AI analysis endpoints)
 npm run secret-scan → ✅ No hardcoded secrets found
 npm run build (be)  → ✅ tsc compiles with 0 errors
-npm run build (fe)  → ✅ next build — compiled, 4/4 static pages generated
+npm run build (fe)  → ✅ next build — compiled, static + dynamic routes generated
 GET /api/health     → ✅ {"status":"ok","timestamp":"...","uptime":...}
 ```
 
-### API Endpoints (Phase 1)
+### API Endpoints (Phase 3 Verified)
 
-| Method   | Path                 | Auth | Status        |
-| -------- | -------------------- | ---- | ------------- |
-| `GET`    | `/api/health`        | None | ✅ Live       |
-| `POST`   | `/api/upload`        | JWT  | 501 — Phase 2 |
-| `GET`    | `/api/documents`     | JWT  | 501 — Phase 2 |
-| `GET`    | `/api/documents/:id` | JWT  | 501 — Phase 2 |
-| `DELETE` | `/api/documents/:id` | JWT  | 501 — Phase 2 |
-| `POST`   | `/api/analyze`       | JWT  | 501 — Phase 3 |
+| Method   | Path                          | Auth | Status  |
+| -------- | ----------------------------- | ---- | ------- |
+| `GET`    | `/api/health`                 | None | ✅ Live |
+| `POST`   | `/api/documents/upload`       | Auth | ✅ Live |
+| `GET`    | `/api/documents`              | Auth | ✅ Live |
+| `GET`    | `/api/documents/:id`          | Auth | ✅ Live |
+| `DELETE` | `/api/documents/:id`          | Auth | ✅ Live |
+| `POST`   | `/api/documents/:id/analyze`  | Auth | ✅ Live |
+| `GET`    | `/api/documents/:id/analysis` | Auth | ✅ Live |
+| `POST`   | `/api/analyze`                | Auth | ✅ Live |
 
 ### Security Notes
 
 - `.env` is in `.gitignore` and is never committed.
 - `.env.example` contains placeholder strings only — no real credentials.
 - No API keys, private keys, or documents appear anywhere in the repository.
-- `ANTHROPIC_API_KEY` or any other tool key must never be placed in source files.
-- Backend-only AI access prevents browser credential exposure (Phase 3).
-- Helmet CSP restricts `defaultSrc: 'none'` in Phase 1.
-- Rate limiting protects all routes (100 req / 15 min window).
+- Backend-only Vertex AI and Gemini SDK access prevents browser credential exposure.
+- Helmet CSP restricts `defaultSrc: 'none'`.
+- Rate limiting protects all routes.
 
 ### Testing
 
-Phase 1 test suite: **16 tests, 16 passing** via `npx tsx --test`:
+Phase 3 test suite: **30 tests, 30 passing** via `npx tsx --test`:
 
 - `tests/unit/authMiddleware.test.ts` — 4 tests (token validation, mock tokens, ownership checks)
 - `tests/unit/documentValidation.test.ts` — 7 tests (file type, size, extension, path traversal)
 - `tests/unit/extractionService.test.ts` — 4 tests (magic bytes, normalization, chunking, TXT extraction)
+- `tests/unit/firebaseConfigValidation.test.ts` — 5 tests (Firebase environment validation)
+- `tests/unit/aiService.test.ts` — 5 tests (prompt fencing, injection defense, Zod validation, disclaimer enforcement, fallback parser)
 - `tests/integration/documentPipeline.test.ts` — 1 test (full pipeline: upload → extract → list → delete with ownership checks)
-- `tests/e2e/` — End-to-end tests (Phase 4+).
+- `tests/integration/aiAnalysisEndpoint.test.ts` — 4 tests (analysis execution, persistence, retrieval, authorization)
 
-Root `npm run test` runs `npx tsx --test tests/**/*.test.ts` → 16 pass, 0 fail.
+Root `npm run test` runs `npx tsx --test tests/**/*.test.ts` → 30 pass, 0 fail.
 
 ### Assumptions
 
