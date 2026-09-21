@@ -132,3 +132,88 @@ export async function getAnalysis(token: string, documentId: string) {
 
   return response.json();
 }
+
+export async function askQuestion(token: string, documentId: string, question: string) {
+  const response = await fetch(`${API_URL}/documents/${documentId}/qa`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ question }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Q&A request failed');
+  }
+
+  return response.json();
+}
+
+export async function getQASessions(token: string, documentId: string) {
+  const response = await fetch(`${API_URL}/documents/${documentId}/qa`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Could not fetch Q&A history');
+  }
+
+  return response.json();
+}
+
+export async function compareDocuments(token: string, documentId1: string, documentId2: string) {
+  const response = await fetch(`${API_URL}/documents/compare`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ documentId1, documentId2 }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Document comparison failed');
+  }
+
+  return response.json();
+}
+
+export async function getComparisons(token: string) {
+  const response = await fetch(`${API_URL}/documents/comparisons`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Could not fetch comparisons');
+  }
+
+  return response.json();
+}
+
+export async function explainClause(
+  token: string,
+  documentId: string,
+  clauseName: string,
+  originalText?: string,
+) {
+  const response = await fetch(`${API_URL}/documents/${documentId}/explain-clause`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ clauseName, originalText }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Could not explain clause');
+  }
+
+  return response.json();
+}

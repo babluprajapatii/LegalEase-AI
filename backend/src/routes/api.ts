@@ -55,4 +55,47 @@ router.post(
   },
 );
 
+// Phase 4 Alias Endpoint (POST /api/compare → same as /api/documents/compare)
+router.post(
+  '/compare',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const { documentId1, documentId2 } = req.body || {};
+      if (!documentId1 || !documentId2) {
+        res
+          .status(400)
+          .json({ success: false, error: 'Both documentId1 and documentId2 are required' });
+        return;
+      }
+
+      const { DocumentService } = await import('../services/documentService');
+      const docService = new DocumentService();
+      const result = await docService.compareDocuments(documentId1, documentId2, req.user.uid);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Document comparison completed successfully',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+      res.status(500).json({ success: false, error: message || 'Document comparison failed' });
+    }
+  },
+);
+
 export default router;

@@ -354,11 +354,116 @@ export class DocumentService {
   /**
    * Retrieves existing analysis record for document.
    */
+  /**
+   * Retrieves existing analysis record for document.
+   */
   async getDocumentAnalysis(
     documentId: string,
     userId: string,
   ): Promise<AnalysisDocumentRecord | null> {
     await this.getDocumentById(documentId, userId); // Ownership check
     return await this.firestoreService.getAnalysisByDocumentId(documentId);
+  }
+
+  /**
+   * Phase 4: Grounded Q&A for a user document with ownership verification and persistence.
+   */
+  async askDocumentQuestion(documentId: string, userId: string, question: string): Promise<any> {
+    const doc = await this.getDocumentById(documentId, userId);
+
+    if (!question || question.trim().length === 0) {
+      throw new Error('Question must not be empty');
+    }
+
+    const qaResult = await this.aiService.askQuestion(
+      doc.extractedText || '',
+      question,
+      doc.filename,
+    );
+
+    const record = {
+      id: `qa_${uuidv4()}`,
+      documentId,
+      userId,
+      question: question.trim(),
+      answer: qaResult.answer,
+      sources: qaResult.sources,
+      confidence: qaResult.confidence,
+      isNotPresent: qaResult.isNotPresent,
+      timestamp: new Date().toISOString(),
+      disclaimer: qaResult.disclaimer,
+    };
+
+    await this.firestoreService.saveQASession(record);
+    return record;
+  }
+
+  /**
+   * Phase 4: Retrieve Q&A history for a document with ownership check.
+   */
+  async getQASessions(documentId: string, userId: string): Promise<any[]> {
+    await this.getDocumentById(documentId, userId);
+    return await this.firestoreService.getQASessionsByDocumentId(documentId, userId);
+  }
+
+  /**
+   * Phase 4: Compare two documents with dual-document ownership authorization check.
+   */
+  async compareDocuments(documentId1: string, documentId2: string, userId: string): Promise<any> {
+    if (!documentId1 || !documentId2) {
+      throw new Error('Both documentId1 and documentId2 are required for comparison');
+    }
+    if (documentId1 === documentId2) {
+      throw new Error('Cannot compare a document with itself');
+    }
+
+    // Server-side dual ownership check: MUST authorize BOTH documents independently
+    const doc1 = await this.getDocumentById(documentId1, userId);
+    const doc2 = await this.getDocumentById(documentId2, userId);
+
+    const results = await this.aiService.compareDocuments(
+      doc1.extractedText || '',
+      doc1.filename,
+      doc2.extractedText || '',
+      doc2.filename,
+    );
+
+    const record = {
+      id: `cmp_${uuidv4()}`,
+      userId,
+      documentId1,
+      documentId2,
+      documentTitle1: doc1.filename,
+      documentTitle2: doc2.filename,
+      results,
+      timestamp: new Date().toISOString(),
+    };
+
+    await this.firestoreService.saveComparison(record);
+    return record;
+  }
+
+  /**
+   * Phase 4: Retrieve user comparison history.
+   */
+  async getUserComparisons(userId: string): Promise<any[]> {
+    return await this.firestoreService.getComparisonsByUserId(userId);
+  }
+
+  /**
+   * Phase 4: Plain-language clause explanation helper with ownership check.
+   */
+  async explainClause(
+    documentId: string,
+    userId: string,
+    clauseName: string,
+    originalText?: string,
+  ): Promise<any> {
+    const doc = await this.getDocumentById(documentId, userId);
+    if (!clauseName || clauseName.trim().length === 0) {
+      throw new Error('clauseName is required');
+    }
+
+    return await this.aiService.explainClause(clauseName, originalText || doc.extractedText);
   }
 }

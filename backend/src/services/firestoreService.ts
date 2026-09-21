@@ -293,4 +293,148 @@ export class FirestoreService {
 
     return null;
   }
+
+  private qaStore: Map<string, any> = new Map();
+  private comparisonStore: Map<string, any> = new Map();
+
+  /**
+   * Stores a Q&A session record in `qa_sessions` collection.
+   */
+  async saveQASession(record: any): Promise<void> {
+    this.qaStore.set(record.id, record);
+
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        await db.collection('qa_sessions').doc(record.id).set(record);
+        logger.info('Q&A session record saved to Firestore', {
+          qaId: record.id,
+          documentId: record.documentId,
+          userId: record.userId,
+        });
+      } catch (error) {
+        logger.warn('Firestore create Q&A session failed, using in-memory fallback', { error });
+      }
+    }
+  }
+
+  /**
+   * Retrieves Q&A history records for a specific document and user.
+   */
+  async getQASessionsByDocumentId(documentId: string, userId: string): Promise<any[]> {
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        const snapshot = await db
+          .collection('qa_sessions')
+          .where('documentId', '==', documentId)
+          .where('userId', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .get();
+
+        const results: any[] = [];
+        snapshot.forEach((doc) => results.push(doc.data()));
+        return results;
+      } catch (error) {
+        logger.warn('Firestore query Q&A sessions failed, falling back to in-memory store', {
+          error,
+        });
+      }
+    }
+
+    const results: any[] = [];
+    for (const record of this.qaStore.values()) {
+      if (record.documentId === documentId && record.userId === userId) {
+        results.push(record);
+      }
+    }
+    return results.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }
+
+  /**
+   * Stores a comparison record in `comparisons` collection.
+   */
+  async saveComparison(record: any): Promise<void> {
+    this.comparisonStore.set(record.id, record);
+
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        await db.collection('comparisons').doc(record.id).set(record);
+        logger.info('Comparison record saved to Firestore', {
+          comparisonId: record.id,
+          userId: record.userId,
+          documentId1: record.documentId1,
+          documentId2: record.documentId2,
+        });
+      } catch (error) {
+        logger.warn('Firestore create comparison failed, using in-memory fallback', { error });
+      }
+    }
+  }
+
+  /**
+   * Lists comparison history records for a user.
+   */
+  async getComparisonsByUserId(userId: string): Promise<any[]> {
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        const snapshot = await db
+          .collection('comparisons')
+          .where('userId', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .get();
+
+        const results: any[] = [];
+        snapshot.forEach((doc) => results.push(doc.data()));
+        return results;
+      } catch (error) {
+        logger.warn('Firestore query user comparisons failed, falling back to in-memory store', {
+          error,
+        });
+      }
+    }
+
+    const results: any[] = [];
+    for (const record of this.comparisonStore.values()) {
+      if (record.userId === userId) {
+        results.push(record);
+      }
+    }
+    return results.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }
+
+  /**
+   * Retrieves a single comparison record by ID with user ownership check.
+   */
+  async getComparisonById(id: string, userId: string): Promise<any | null> {
+    if (this.isFirestoreAvailable()) {
+      try {
+        const db = getFirestoreDb();
+        const doc = await db.collection('comparisons').doc(id).get();
+        if (doc.exists) {
+          const data = doc.data();
+          if (data && data.userId === userId) {
+            return data;
+          }
+        }
+      } catch (error) {
+        logger.warn('Firestore get comparison by ID failed, falling back to in-memory store', {
+          error,
+        });
+      }
+    }
+
+    const record = this.comparisonStore.get(id);
+    if (record && record.userId === userId) {
+      return record;
+    }
+
+    return null;
+  }
 }

@@ -131,3 +131,71 @@ export interface AnalysisDocumentRecord {
   results: AnalysisOutput;
   status: AnalysisStatus;
 }
+
+// ─── Phase 4: Q&A, Document Comparison & Clause Explanation Domain Types ───
+export type QAConfidence = 'highly confident' | 'moderately confident' | 'limited information';
+
+export interface QASourceItem {
+  text: string;
+  section?: string;
+  page?: number;
+}
+
+export interface QASessionRecord {
+  id: string;
+  documentId: string;
+  userId: string;
+  question: string;
+  answer: string;
+  sources: QASourceItem[];
+  confidence: QAConfidence;
+  isNotPresent: boolean;
+  timestamp: string;
+  disclaimer: string;
+}
+
+export type ChangeType = 'added' | 'removed' | 'modified';
+
+export interface ComparisonDifference {
+  id: string;
+  category: 'clause' | 'obligation' | 'date' | 'financial' | 'other';
+  changeType: ChangeType;
+  title: string;
+  docAText?: string;
+  docBText?: string;
+  explanation: string;
+  riskImpact: RiskLevel;
+  section?: string;
+}
+
+export interface ComparisonOutput {
+  summary: string;
+  differences: ComparisonDifference[];
+  addedCount: number;
+  removedCount: number;
+  modifiedCount: number;
+  nextSteps: string[];
+  typeCompatibilityWarning?: string;
+  disclaimer: string;
+}
+
+export interface ComparisonRecord {
+  id: string;
+  userId: string;
+  documentId1: string;
+  documentId2: string;
+  documentTitle1: string;
+  documentTitle2: string;
+  results: ComparisonOutput;
+  timestamp: string;
+}
+
+export interface ExplainClauseOutput {
+  clauseName: string;
+  originalText?: string;
+  plainExplanation: string;
+  whyItMatters: string;
+  whatToClarify: string[];
+  sourceReference?: string;
+  disclaimer: string;
+}

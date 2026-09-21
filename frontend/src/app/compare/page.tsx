@@ -4,41 +4,69 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Sidebar from '../../components/Sidebar';
-import StatusBadge from '../../components/ui/StatusBadge';
 import { useAuth } from '../../lib/auth-context';
-import { listDocuments } from '../../lib/api-client';
+import { listDocuments, compareDocuments } from '../../lib/api-client';
 import type { DocumentMetadata } from '../../lib/api';
-import { IconCompare, IconSparkle, IconDocument, IconArrowRight } from '../../components/ui/Icons';
+import { ComparisonRecord } from '../../../../shared/types';
+import { IconCompare, IconSparkle, IconArrowRight } from '../../components/ui/Icons';
 
-/**
- * Document Comparison page — matches Figma Compare() screen in exported Figma UI.
- * Compares two selected documents, highlighting added, removed, and modified clauses.
- */
 function CompareContent() {
   const { token } = useAuth();
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+
+  const [selectedDocA, setSelectedDocA] = useState<string>('');
+  const [selectedDocB, setSelectedDocB] = useState<string>('');
+
+  const [comparing, setComparing] = useState(false);
+  const [comparisonResult, setComparisonResult] = useState<ComparisonRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDocuments() {
       if (!token) {
-        setLoading(false);
+        setLoadingDocs(false);
         return;
       }
       try {
         const docs = await listDocuments(token);
         setDocuments(docs);
+        if (docs.length >= 2) {
+          setSelectedDocA(docs[0].id);
+          setSelectedDocB(docs[1].id);
+        } else if (docs.length === 1) {
+          setSelectedDocA(docs[0].id);
+        }
       } catch (err) {
         console.error('Failed to fetch documents for comparison:', err);
       } finally {
-        setLoading(false);
+        setLoadingDocs(false);
       }
     }
     fetchDocuments();
   }, [token]);
 
-  const docA = documents[0];
-  const docB = documents[1];
+  const handleRunComparison = async () => {
+    if (!token || !selectedDocA || !selectedDocB) return;
+    if (selectedDocA === selectedDocB) {
+      setError('Please select two different documents to compare.');
+      return;
+    }
+
+    try {
+      setComparing(true);
+      setError(null);
+      const res = await compareDocuments(token, selectedDocA, selectedDocB);
+      if (res.data) {
+        setComparisonResult(res.data);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+    } finally {
+      setComparing(false);
+    }
+  };
 
   return (
     <div className="authenticated-layout">
@@ -49,13 +77,14 @@ function CompareContent() {
           style={{ maxWidth: 'var(--container-analysis)', margin: '0 auto', width: '100%' }}
         >
           <div style={{ marginBottom: 24 }}>
-            <h1 className="t-h1">Document Comparison</h1>
+            <h1 className="t-h1">Document Comparison & Versioning</h1>
             <p className="t-body" style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}>
-              Compare two document versions to detect key structural and clause differences.
+              Compare two document versions side-by-side to detect added, removed, and modified
+              clauses with grounded AI analysis.
             </p>
           </div>
 
-          {loading ? (
+          {loadingDocs ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[0, 1].map((i) => (
                 <div
@@ -86,7 +115,7 @@ function CompareContent() {
                 <IconCompare size={56} />
               </div>
               <h3 className="t-h3" style={{ fontSize: 18, marginBottom: 8 }}>
-                No comparison available yet
+                At Least 2 Documents Required
               </h3>
               <p
                 className="t-body-sm"
@@ -96,7 +125,8 @@ function CompareContent() {
                   margin: '0 auto 20px',
                 }}
               >
-                You need at least two uploaded documents to perform automated version comparison.
+                Upload at least two legal documents to unlock automated version-to-version clause
+                comparison.
               </p>
               <Link
                 href="/upload"
@@ -119,143 +149,310 @@ function CompareContent() {
               </Link>
             </div>
           ) : (
-            <>
-              {/* Document Header Cards */}
-              <div
-                style={{
-                  display: 'grid',
-                  gap: 16,
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  marginBottom: 20,
-                }}
-              >
-                <div
-                  style={{
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: 20,
-                    boxShadow: 'var(--shadow-card)',
-                  }}
-                >
-                  <div className="t-h4" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <IconDocument size={18} /> {docA.filename}
-                  </div>
-                  <div
-                    className="t-caption t-mono"
-                    style={{ color: 'var(--color-text-muted)', margin: '4px 0 8px' }}
-                  >
-                    Document A (Base Version)
-                  </div>
-                  <StatusBadge status={docA.processingStatus} />
-                </div>
-
-                <div
-                  style={{
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: 20,
-                    boxShadow: 'var(--shadow-card)',
-                  }}
-                >
-                  <div className="t-h4" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <IconDocument size={18} /> {docB.filename}
-                  </div>
-                  <div
-                    className="t-caption t-mono"
-                    style={{ color: 'var(--color-text-muted)', margin: '4px 0 8px' }}
-                  >
-                    Document B (New Version)
-                  </div>
-                  <StatusBadge status={docB.processingStatus} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <span
-                  className="t-label"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '4px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--color-ai-bg)',
-                    color: 'var(--color-ai)',
-                  }}
-                >
-                  <IconSparkle size={13} /> Comparison Analysis
-                </span>
-                <span className="t-h4">Differences found: 3 key clauses</span>
-              </div>
-
-              {/* Added Clauses */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Document Selector Controls */}
               <div
                 style={{
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-lg)',
-                  padding: 20,
+                  padding: 24,
                   boxShadow: 'var(--shadow-card)',
-                  marginBottom: 16,
                 }}
               >
-                <h3 className="t-h4" style={{ marginBottom: 12, color: 'var(--color-success)' }}>
-                  + Added Clauses in Document B
-                </h3>
-                <div style={{ borderLeft: '3px solid var(--color-success)', paddingLeft: 12 }}>
-                  <div className="t-body-sm" style={{ fontWeight: 600 }}>
-                    Auto-Renewal Notice Requirement (Section 14.2)
+                <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>
+                  Select Documents to Compare
+                </h2>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: 20,
+                    marginBottom: 20,
+                  }}
+                >
+                  {/* Select Doc A */}
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: 'var(--color-text-secondary)',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Document A (Original / Base)
+                    </label>
+                    <select
+                      value={selectedDocA}
+                      onChange={(e) => setSelectedDocA(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-background)',
+                        color: 'var(--color-text-primary)',
+                        fontSize: 14,
+                      }}
+                    >
+                      {documents.map((doc) => (
+                        <option key={doc.id} value={doc.id}>
+                          {doc.filename} ({doc.contentType})
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <p
-                    className="t-body-sm"
-                    style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}
-                  >
-                    Mandates 60-day written notice prior to annual renewal term.
-                  </p>
+
+                  {/* Select Doc B */}
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: 'var(--color-text-secondary)',
+                        marginBottom: 6,
+                      }}
+                    >
+                      Document B (New / Revised)
+                    </label>
+                    <select
+                      value={selectedDocB}
+                      onChange={(e) => setSelectedDocB(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-background)',
+                        color: 'var(--color-text-primary)',
+                        fontSize: 14,
+                      }}
+                    >
+                      {documents.map((doc) => (
+                        <option key={doc.id} value={doc.id}>
+                          {doc.filename} ({doc.contentType})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {error && (
+                  <div
+                    style={{
+                      background: 'var(--color-error-bg)',
+                      border: '1px solid var(--color-error)',
+                      color: 'var(--color-error)',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: 13,
+                      marginBottom: 16,
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleRunComparison}
+                  disabled={
+                    comparing || !selectedDocA || !selectedDocB || selectedDocA === selectedDocB
+                  }
+                  className="btn-primary"
+                  style={{ width: '100%', padding: '12px 24px', fontSize: 15 }}
+                >
+                  {comparing
+                    ? 'Analyzing Structural & Clause Differences...'
+                    : '⚡ Run AI Document Comparison'}
+                </button>
               </div>
 
-              {/* Modified Clauses */}
-              <div
-                style={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: 20,
-                  boxShadow: 'var(--shadow-card)',
-                  marginBottom: 16,
-                }}
-              >
-                <h3 className="t-h4" style={{ marginBottom: 12, color: 'var(--color-warning)' }}>
-                  ▼ Modified Clauses
-                </h3>
-                <div style={{ borderLeft: '3px solid var(--color-warning)', paddingLeft: 12 }}>
-                  <div className="t-body-sm" style={{ fontWeight: 600 }}>
-                    Grace Period &amp; Late Fee Penalty (Section 4.1)
-                  </div>
-                  <p
-                    className="t-body-sm"
-                    style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}
+              {/* Comparison Results Area */}
+              {comparisonResult && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {/* Summary & Metrics */}
+                  <div
+                    style={{
+                      background: 'var(--color-surface)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 24,
+                      boxShadow: 'var(--shadow-card)',
+                    }}
                   >
-                    Document A: 10-day grace period with $50 late fee.
-                  </p>
-                  <p className="t-body-sm" style={{ marginTop: 2 }}>
-                    Document B:{' '}
-                    <strong>5-day grace period with 5% total monthly rent penalty.</strong>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}
+                    >
+                      <span
+                        className="t-label"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '4px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'var(--color-ai-bg)',
+                          color: 'var(--color-ai)',
+                        }}
+                      >
+                        <IconSparkle size={13} /> Grounded AI Analysis
+                      </span>
+                      <span className="t-h4">Comparison Result</span>
+                    </div>
+
+                    <p
+                      style={{
+                        fontSize: 15,
+                        lineHeight: 1.6,
+                        color: 'var(--color-text-primary)',
+                        marginBottom: 16,
+                      }}
+                    >
+                      {comparisonResult.results.summary}
+                    </p>
+
+                    {/* Diff Counters */}
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <span className="badge badge-success">
+                        +{comparisonResult.results.addedCount} Added
+                      </span>
+                      <span className="badge badge-error">
+                        -{comparisonResult.results.removedCount} Removed
+                      </span>
+                      <span className="badge badge-warning">
+                        ▼{comparisonResult.results.modifiedCount} Modified
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Type Compatibility Warning */}
+                  {comparisonResult.results.typeCompatibilityWarning && (
+                    <div
+                      style={{
+                        background: 'var(--color-warning-bg)',
+                        border: '1px solid var(--color-warning)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: 16,
+                        display: 'flex',
+                        gap: 12,
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <span style={{ fontSize: 20 }}>⚠️</span>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--color-text-primary)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <strong>Document Compatibility Warning:</strong>{' '}
+                        {comparisonResult.results.typeCompatibilityWarning}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clause Differences List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 600 }}>
+                      Detailed Clause & Structural Changes
+                    </h3>
+
+                    {comparisonResult.results.differences.map((diff) => (
+                      <div
+                        key={diff.id}
+                        style={{
+                          background: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          borderLeft: `4px solid ${
+                            diff.changeType === 'added'
+                              ? 'var(--color-success)'
+                              : diff.changeType === 'removed'
+                                ? 'var(--color-error)'
+                                : 'var(--color-warning)'
+                          }`,
+                          borderRadius: 'var(--radius-lg)',
+                          padding: 20,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                          boxShadow: 'var(--shadow-card)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <h4 style={{ fontSize: 16, fontWeight: 600 }}>{diff.title}</h4>
+                          <span
+                            className={`badge ${
+                              diff.changeType === 'added'
+                                ? 'badge-success'
+                                : diff.changeType === 'removed'
+                                  ? 'badge-error'
+                                  : 'badge-warning'
+                            }`}
+                          >
+                            {diff.changeType.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <p style={{ fontSize: 14, color: 'var(--color-text-primary)' }}>
+                          {diff.explanation}
+                        </p>
+
+                        {(diff.docAText || diff.docBText) && (
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                              gap: 12,
+                              background: 'var(--color-background)',
+                              padding: 12,
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {diff.docAText && (
+                              <div>
+                                <strong style={{ color: 'var(--color-text-secondary)' }}>
+                                  Doc A:
+                                </strong>{' '}
+                                {diff.docAText}
+                              </div>
+                            )}
+                            {diff.docBText && (
+                              <div>
+                                <strong style={{ color: 'var(--color-text-secondary)' }}>
+                                  Doc B:
+                                </strong>{' '}
+                                {diff.docBText}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Disclaimer */}
+                  <p
+                    className="t-caption"
+                    style={{ color: 'var(--color-text-secondary)', marginTop: 8 }}
+                  >
+                    {comparisonResult.results.disclaimer}
                   </p>
                 </div>
-              </div>
-
-              <p
-                className="t-caption"
-                style={{ color: 'var(--color-text-secondary)', marginTop: 24 }}
-              >
-                Comparison analysis generated by AI. Results are for educational purposes only and
-                do not replace legal counsel.
-              </p>
-            </>
+              )}
+            </div>
           )}
         </div>
       </main>

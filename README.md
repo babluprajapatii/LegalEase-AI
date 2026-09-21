@@ -76,10 +76,19 @@ Grounded GenAI document analysis pipeline and interactive frontend report interf
 - **Frontend Analysis View (`/documents/[id]`)** — Figma-aligned analysis report interface featuring tabbed navigation (Executive Summary, Key Clauses & Risks, Obligations, Important Dates, Actionable Guidance), risk level badges (High/Medium/Low), and an interactive Grounding Citation Drawer.
 - **Verified Quality Gates** — 30/30 unit and integration tests passing, 0 TypeScript errors, 100% Prettier formatting compliance, secret scan clean, and production builds succeeding.
 
-### Phase 4 — Interactive Features, History & Deployment
+### ✅ Phase 4 — Document Q&A, Comparison & Advanced Legal Assistance (code-verified)
 
-- Document Q&A, side-by-side comparison, and history search — coming in Phase 4.
-- Cloud Run deployment — coming in Phase 4.
+Interactive GenAI legal assistant capabilities and document comparison tools:
+
+- **Grounded Document Q&A (`POST /api/documents/:id/qa`, `GET /api/documents/:id/qa`)** — Context-aware, grounded document Q&A using keyword scoring (`selectRelevantChunks`), prompt fencing (`<document_content>`), textual confidence ratings (`highly confident`, `moderately confident`, `limited information`), explicit `isNotPresent` absence banners, and source citation references.
+- **Document Comparison Engine (`POST /api/documents/compare`, `GET /api/documents/comparisons`)** — Version-to-version document comparison with strict server-side dual-document ownership enforcement (`documentService.compareDocuments`), structural diff parsing (Added `+`, Removed `-`, Modified `▼`), document type compatibility warnings (`typeCompatibilityWarning`), and Firestore persistence.
+- **Plain-English "Explain This Clause" (`POST /api/documents/:id/explain-clause`)** — Interactive clause simplification producing plain-language summaries, "Why It Matters" insights, and recommended party clarifications rendered inside a slide-over drawer modal.
+- **Actionable Guidance & Search** — Automated checklist generation, lawyer consultation questions, counterparty clarifications, and document history search (`/documents`, `/history`, `/dashboard`).
+- **Verified Quality Gates** — Unit test suite (`backend/src/services/phase4.test.ts`) 5/5 tests passing, zero TypeScript compilation errors, zero linter warnings, 100% Prettier format compliance, 0 hardcoded secrets found, and Next.js production build passing cleanly.
+
+### Phase 5 — Product Polish, Security Hardening & Comprehensive Testing
+
+- System reliability, edge-case testing, accessibility validation, and hackathon readiness — coming in Phase 5.
 
 ---
 

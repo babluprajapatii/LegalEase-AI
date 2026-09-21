@@ -155,6 +155,81 @@ router.get(
 );
 
 /**
+ * POST /api/documents/compare
+ * Compares 2 user documents with dual-document ownership authorization.
+ */
+router.post(
+  '/compare',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const { documentId1, documentId2 } = req.body || {};
+      if (!documentId1 || !documentId2) {
+        res.status(400).json({
+          success: false,
+          error: 'Both documentId1 and documentId2 are required in request body',
+        });
+        return;
+      }
+
+      const comparisonRecord = await documentService.compareDocuments(
+        documentId1,
+        documentId2,
+        req.user.uid,
+      );
+
+      res.status(200).json({
+        success: true,
+        data: comparisonRecord,
+        message: 'Document comparison completed successfully',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+      res.status(500).json({ success: false, error: message || 'Document comparison failed' });
+    }
+  },
+);
+
+/**
+ * GET /api/documents/comparisons
+ * Lists user comparison history.
+ */
+router.get(
+  '/comparisons',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const comparisons = await documentService.getUserComparisons(req.user.uid);
+      res.status(200).json({
+        success: true,
+        data: comparisons,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ success: false, error: message || 'Failed to list comparisons' });
+    }
+  },
+);
+
+/**
  * GET /api/documents/:id
  * Retrieves document details with server-side ownership authorization.
  */
@@ -332,6 +407,148 @@ router.get(
 
       logger.error('Get document analysis failed', { documentId: req.params.id, error: message });
       res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /api/documents/:id/qa
+ * Grounded Q&A for a user document.
+ */
+router.post(
+  '/:id/qa',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const documentId = Array.isArray(req.params.id)
+        ? req.params.id[0]!
+        : (req.params.id as string);
+      const { question } = req.body || {};
+
+      if (!question || typeof question !== 'string' || question.trim().length === 0) {
+        res.status(400).json({ success: false, error: 'question string is required' });
+        return;
+      }
+
+      const qaRecord = await documentService.askDocumentQuestion(
+        documentId,
+        req.user.uid,
+        question,
+      );
+
+      res.status(200).json({
+        success: true,
+        data: qaRecord,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+
+      logger.error('Document Q&A failed', { documentId: req.params.id, error: message });
+      res.status(500).json({ success: false, error: message || 'Document Q&A failed' });
+    }
+  },
+);
+
+/**
+ * GET /api/documents/:id/qa
+ * Fetches Q&A history for a document.
+ */
+router.get(
+  '/:id/qa',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const documentId = Array.isArray(req.params.id)
+        ? req.params.id[0]!
+        : (req.params.id as string);
+
+      const qaHistory = await documentService.getQASessions(documentId, req.user.uid);
+
+      res.status(200).json({
+        success: true,
+        data: qaHistory,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+
+      res.status(500).json({ success: false, error: message || 'Failed to fetch Q&A history' });
+    }
+  },
+);
+
+/**
+ * POST /api/documents/:id/explain-clause
+ * Generates plain-language explanation for a selected clause.
+ */
+router.post(
+  '/:id/explain-clause',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
+      const documentId = Array.isArray(req.params.id)
+        ? req.params.id[0]!
+        : (req.params.id as string);
+      const { clauseName, originalText } = req.body || {};
+
+      if (!clauseName || typeof clauseName !== 'string') {
+        res.status(400).json({ success: false, error: 'clauseName is required' });
+        return;
+      }
+
+      const explanation = await documentService.explainClause(
+        documentId,
+        req.user.uid,
+        clauseName,
+        originalText,
+      );
+
+      res.status(200).json({
+        success: true,
+        data: explanation,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+        return;
+      }
+      if (message.includes('Access denied')) {
+        res.status(403).json({ success: false, error: message });
+        return;
+      }
+
+      res.status(500).json({ success: false, error: message || 'Failed to explain clause' });
     }
   },
 );

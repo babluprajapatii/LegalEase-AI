@@ -6,8 +6,19 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import Sidebar from '../../../components/Sidebar';
 import StatusBadge from '../../../components/ui/StatusBadge';
 import { useAuth } from '../../../lib/auth-context';
-import { getAnalysis, analyzeDocument } from '../../../lib/api-client';
-import { AnalysisDocumentRecord, ClauseItem } from '../../../../../shared/types';
+import {
+  getAnalysis,
+  analyzeDocument,
+  askQuestion,
+  getQASessions,
+  explainClause,
+} from '../../../lib/api-client';
+import {
+  AnalysisDocumentRecord,
+  ClauseItem,
+  QASessionRecord,
+  ExplainClauseOutput,
+} from '../../../../../shared/types';
 
 function AnalysisContent({ documentId }: { documentId: string }) {
   const { user, token } = useAuth();
@@ -18,8 +29,17 @@ function AnalysisContent({ documentId }: { documentId: string }) {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState<
-    'summary' | 'clauses' | 'obligations' | 'dates' | 'guidance'
+    'summary' | 'clauses' | 'obligations' | 'dates' | 'guidance' | 'qa'
   >('summary');
+
+  // Grounded Q&A State
+  const [qaHistory, setQaHistory] = useState<QASessionRecord[]>([]);
+  const [qaQuestion, setQaQuestion] = useState('');
+  const [askingQA, setAskingQA] = useState(false);
+
+  // Explain Clause State
+  const [explainingClause, setExplainingClause] = useState<ExplainClauseOutput | null>(null);
+  const [loadingExplain, setLoadingExplain] = useState(false);
 
   // Grounding Citation Drawer state
   const [selectedCitation, setSelectedCitation] = useState<{
@@ -59,11 +79,59 @@ function AnalysisContent({ documentId }: { documentId: string }) {
     }
   };
 
+  const fetchQAHistory = async () => {
+    if (!token) return;
+    try {
+      const res = await getQASessions(token, documentId);
+      if (res.data) setQaHistory(res.data);
+    } catch {
+      // Quiet fail for initial Q&A fetch
+    }
+  };
+
   useEffect(() => {
     if (user && token) {
       fetchRecord();
+      fetchQAHistory();
     }
   }, [user, token, documentId]);
+
+  const handleAskQA = async (e?: React.FormEvent, customQuestion?: string) => {
+    if (e) e.preventDefault();
+    const qText = customQuestion || qaQuestion;
+    if (!qText.trim() || !token) return;
+
+    try {
+      setAskingQA(true);
+      setError(null);
+      const res = await askQuestion(token, documentId, qText.trim());
+      if (res.data) {
+        setQaHistory((prev) => [res.data, ...prev]);
+        setQaQuestion('');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+    } finally {
+      setAskingQA(false);
+    }
+  };
+
+  const handleExplainClauseClick = async (clauseName: string, originalText?: string) => {
+    if (!token) return;
+    try {
+      setLoadingExplain(true);
+      const res = await explainClause(token, documentId, clauseName, originalText);
+      if (res.data) {
+        setExplainingClause(res.data);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+    } finally {
+      setLoadingExplain(false);
+    }
+  };
 
   const handleReanalyze = async () => {
     try {
@@ -291,6 +359,7 @@ function AnalysisContent({ documentId }: { documentId: string }) {
                 icon: '📅',
               },
               { id: 'guidance', label: 'Actionable Guidance', icon: '💡' },
+              { id: 'qa', label: `Grounded Q&A (${qaHistory.length})`, icon: '💬' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -624,23 +693,39 @@ function AnalysisContent({ documentId }: { documentId: string }) {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       fontSize: '12px',
+                      gap: '8px',
                     }}
                   >
                     <span style={{ color: 'var(--color-text-muted)' }}>Grounded Source</span>
-                    <button
-                      onClick={() =>
-                        setSelectedCitation({
-                          title: clause.name,
-                          text: clause.originalText || clause.description,
-                          section: clause.section,
-                          page: clause.page,
-                        })
-                      }
-                      className="btn-secondary"
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
-                    >
-                      View Source Text ↗
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() =>
+                          handleExplainClauseClick(
+                            clause.name,
+                            clause.originalText || clause.description,
+                          )
+                        }
+                        disabled={loadingExplain}
+                        className="btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                      >
+                        💡 Explain Clause
+                      </button>
+                      <button
+                        onClick={() =>
+                          setSelectedCitation({
+                            title: clause.name,
+                            text: clause.originalText || clause.description,
+                            section: clause.section,
+                            page: clause.page,
+                          })
+                        }
+                        className="btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                      >
+                        View Source Text ↗
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -948,7 +1033,376 @@ function AnalysisContent({ documentId }: { documentId: string }) {
               </div>
             </div>
           )}
+
+          {/* Tab 6: Grounded Document Q&A Assistant */}
+          {activeTab === 'qa' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* Q&A Input Form */}
+              <div className="card" style={{ padding: '24px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>
+                  💬 Grounded Document Q&A Assistant
+                </h2>
+                <p
+                  style={{
+                    fontSize: '13px',
+                    color: 'var(--color-text-secondary)',
+                    marginBottom: '16px',
+                  }}
+                >
+                  Ask any question about this document. Answers are strictly grounded in extracted
+                  text and include source citations.
+                </p>
+
+                {/* Suggested Quick Questions */}
+                <div
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}
+                >
+                  {[
+                    'What are the notice requirements for termination?',
+                    'What are the payment terms and due dates?',
+                    'Is there an automatic renewal clause?',
+                    'What are the liability limits or indemnifications?',
+                  ].map((suggested, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleAskQA(undefined, suggested)}
+                      disabled={askingQA}
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '16px' }}
+                    >
+                      💡 {suggested}
+                    </button>
+                  ))}
+                </div>
+
+                <form onSubmit={handleAskQA} style={{ display: 'flex', gap: '12px' }}>
+                  <input
+                    type="text"
+                    value={qaQuestion}
+                    onChange={(e) => setQaQuestion(e.target.value)}
+                    placeholder="Ask a question about this agreement..."
+                    disabled={askingQA}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-background)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={askingQA || !qaQuestion.trim()}
+                    className="btn-primary"
+                    style={{ padding: '12px 24px', fontSize: '14px' }}
+                  >
+                    {askingQA ? 'Searching...' : 'Ask AI'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Q&A Sessions History Feed */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {qaHistory.length === 0 ? (
+                  <div
+                    className="card"
+                    style={{
+                      padding: '32px',
+                      textAlign: 'center',
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>
+                      🔍
+                    </span>
+                    <p style={{ fontSize: '14px' }}>
+                      No questions asked yet for this document. Use the suggestions above or type
+                      your question.
+                    </p>
+                  </div>
+                ) : (
+                  qaHistory.map((qa) => (
+                    <div
+                      key={qa.id}
+                      className="card"
+                      style={{
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <h3
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 600,
+                            color: 'var(--color-primary)',
+                          }}
+                        >
+                          Q: {qa.question}
+                        </h3>
+                        <span
+                          className={`badge ${qa.confidence === 'highly confident' ? 'badge-success' : qa.confidence === 'limited information' ? 'badge-error' : 'badge-warning'}`}
+                        >
+                          {qa.confidence}
+                        </span>
+                      </div>
+
+                      {qa.isNotPresent && (
+                        <div
+                          style={{
+                            background: 'var(--color-warning-bg)',
+                            border: '1px solid var(--color-warning)',
+                            padding: '10px 14px',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
+                          ℹ️ <strong>Not Found in Document:</strong> The requested information was
+                          not found in the extracted text.
+                        </div>
+                      )}
+
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          lineHeight: 1.6,
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        {qa.answer}
+                      </p>
+
+                      {qa.sources && qa.sources.length > 0 && (
+                        <div
+                          style={{
+                            borderTop: '1px solid var(--color-border)',
+                            paddingTop: '12px',
+                            fontSize: '12px',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              color: 'var(--color-text-secondary)',
+                              display: 'block',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            📌 Grounded Text Sources ({qa.sources.length}):
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {qa.sources.map((src, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  background: 'var(--color-background)',
+                                  padding: '8px 12px',
+                                  borderRadius: '4px',
+                                  fontFamily: 'monospace',
+                                  color: 'var(--color-text-secondary)',
+                                }}
+                              >
+                                "{src.text}" {src.section ? `· ${src.section}` : ''}{' '}
+                                {src.page ? `(Page ${src.page})` : ''}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Explain Clause Slide-Over Modal */}
+        {explainingClause && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 1000,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--color-surface)',
+                borderLeft: '1px solid var(--color-border)',
+                maxWidth: '520px',
+                width: '100%',
+                height: '100%',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: 'var(--shadow-elevated)',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px',
+                    borderBottom: '1px solid var(--color-border)',
+                    paddingBottom: '12px',
+                  }}
+                >
+                  <h3 style={{ fontSize: '18px', fontWeight: 600 }}>💡 Explain This Clause</h3>
+                  <button
+                    onClick={() => setExplainingClause(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <h4
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    color: 'var(--color-primary)',
+                    marginBottom: '8px',
+                  }}
+                >
+                  {explainingClause.clauseName}
+                </h4>
+
+                {explainingClause.originalText && (
+                  <div
+                    style={{
+                      background: 'var(--color-background)',
+                      padding: '12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontFamily: 'monospace',
+                      marginBottom: '16px',
+                      border: '1px solid var(--color-border)',
+                    }}
+                  >
+                    "{explainingClause.originalText}"
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <h5
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: 'var(--color-text-secondary)',
+                        textTransform: 'uppercase',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Plain English Explanation
+                    </h5>
+                    <p
+                      style={{
+                        fontSize: '14px',
+                        lineHeight: 1.6,
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      {explainingClause.plainExplanation}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h5
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: 'var(--color-text-secondary)',
+                        textTransform: 'uppercase',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Why It Matters
+                    </h5>
+                    <p
+                      style={{
+                        fontSize: '14px',
+                        lineHeight: 1.6,
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      {explainingClause.whyItMatters}
+                    </p>
+                  </div>
+
+                  {explainingClause.whatToClarify && explainingClause.whatToClarify.length > 0 && (
+                    <div>
+                      <h5
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: 'var(--color-warning)',
+                          textTransform: 'uppercase',
+                          marginBottom: '6px',
+                        }}
+                      >
+                        Recommended Clarifications
+                      </h5>
+                      <ul
+                        style={{
+                          paddingLeft: '16px',
+                          margin: 0,
+                          fontSize: '13px',
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        {explainingClause.whatToClarify.map((item, idx) => (
+                          <li key={idx} style={{ marginBottom: '4px' }}>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  paddingTop: '16px',
+                  borderTop: '1px solid var(--color-border)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
+                <button onClick={() => setExplainingClause(null)} className="btn-primary">
+                  Close Explanation
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Grounding Source Citation Slide-Over / Modal */}
         {selectedCitation && (
