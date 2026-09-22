@@ -31,5 +31,19 @@ service cloud.firestore {
       allow create, update: if false; // Only backend (Admin SDK) writes analyses
       allow delete: if false;         // Only backend (Admin SDK) deletes analyses
     }
+
+    // ─── Q&A sessions ──────────────────────────────────────────
+    match /qa_sessions/{qaId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create, update: if false; // Only backend (Admin SDK) writes Q&A sessions
+      allow delete: if false;
+    }
+
+    // ─── Comparisons ───────────────────────────────────────────
+    match /comparisons/{comparisonId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create, update: if false; // Only backend (Admin SDK) writes comparisons
+      allow delete: if false;
+    }
   }
 }
