@@ -46,10 +46,18 @@ export async function initiateUpload(
   return data.data;
 }
 
-export async function confirmUpload(token: string, documentId: string): Promise<DocumentMetadata> {
+export async function confirmUpload(
+  token: string,
+  documentId: string,
+  fileData?: string,
+): Promise<DocumentMetadata> {
   const response = await fetch(`${API_URL}/documents/${documentId}/confirm`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(fileData ? { fileData } : {}),
   });
 
   if (!response.ok) {

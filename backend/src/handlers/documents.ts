@@ -83,9 +83,17 @@ router.post(
       const documentId = Array.isArray(req.params.id)
         ? req.params.id[0]!
         : (req.params.id as string);
+
+      let providedBuffer: Buffer | undefined;
+      const { fileData } = req.body || {};
+      if (fileData && typeof fileData === 'string') {
+        providedBuffer = Buffer.from(fileData, 'base64');
+      }
+
       const updatedMetadata = await documentService.confirmAndProcessUpload(
         documentId,
         req.user.uid,
+        providedBuffer,
       );
 
       if (updatedMetadata.processingStatus === 'failed') {

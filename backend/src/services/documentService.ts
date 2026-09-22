@@ -193,6 +193,12 @@ export class DocumentService {
       let buffer: Buffer;
       if (providedBuffer) {
         buffer = providedBuffer;
+        // Upload to Cloud Storage server-side
+        await this.storageService.uploadFileBuffer(
+          metadata.storagePath || `users/${userId}/documents/${documentId}/original`,
+          buffer,
+          metadata.contentType,
+        );
       } else {
         buffer = await this.storageService.downloadFileBuffer(
           metadata.storagePath || `users/${userId}/documents/${documentId}/original`,
@@ -314,9 +320,20 @@ export class DocumentService {
    * Triggers GenAI document analysis and persists analysis results.
    */
   async analyzeDocument(documentId: string, userId: string): Promise<AnalysisDocumentRecord> {
-    const doc = await this.getDocumentById(documentId, userId);
+    let doc = await this.getDocumentById(documentId, userId);
 
-    if (!doc.extractedText && doc.processingStatus !== ProcessingStatus.COMPLETE) {
+    if (!doc.extractedText && doc.processingStatus !== ProcessingStatus.FAILED) {
+      try {
+        doc = await this.confirmAndProcessUpload(documentId, userId);
+      } catch (recoverErr) {
+        logger.warn('Auto-recovery extraction during analysis failed', {
+          documentId,
+          error: recoverErr,
+        });
+      }
+    }
+
+    if (!doc.extractedText) {
       throw new Error('Document extraction incomplete or failed; cannot perform AI analysis');
     }
 

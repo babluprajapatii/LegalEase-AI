@@ -120,7 +120,7 @@ function UploadContent() {
     [handleFileSelect],
   );
 
-  // Upload pipeline using real GCS signed URL
+  // Upload pipeline using real GCS signed URL with server-side direct fallback
   const handleUpload = useCallback(async () => {
     if (!selectedFile || !token) return;
 
@@ -137,14 +137,31 @@ function UploadContent() {
         selectedFile.size,
       );
 
-      await uploadToStorage(uploadData.signedUploadUrl, selectedFile, (loaded, total) => {
-        setProgress(Math.round((loaded / total) * 100));
-      });
+      let directGcsUploadFailed = false;
+      try {
+        await uploadToStorage(uploadData.signedUploadUrl, selectedFile, (loaded, total) => {
+          setProgress(Math.round((loaded / total) * 100));
+        });
+      } catch {
+        // Direct GCS CORS/network error - set flag to use direct server-side upload fallback
+        directGcsUploadFailed = true;
+      }
 
       setStage('validating');
       setProgress(100);
 
-      const result = await confirmUpload(token, uploadData.documentId);
+      let base64Data: string | undefined;
+      if (directGcsUploadFailed) {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        base64Data = typeof btoa === 'function' ? btoa(binary) : undefined;
+      }
+
+      const result = await confirmUpload(token, uploadData.documentId, base64Data);
 
       if (result.processingStatus === 'failed') {
         setStage('failed');

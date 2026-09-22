@@ -62,6 +62,29 @@ export class StorageService {
   }
 
   /**
+   * Uploads a file buffer directly to Cloud Storage server-side.
+   */
+  async uploadFileBuffer(storagePath: string, buffer: Buffer, contentType: string): Promise<void> {
+    try {
+      const bucket = getGCSBucket();
+      const file = bucket.file(storagePath);
+      await file.save(buffer, {
+        contentType,
+        metadata: {
+          contentType,
+        },
+      });
+      logger.info('Uploaded file buffer directly to Cloud Storage', { storagePath });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn('Cloud Storage server-side buffer upload warning', {
+        storagePath,
+        error: message,
+      });
+    }
+  }
+
+  /**
    * Deletes a file from Cloud Storage.
    */
   async deleteStorageFile(storagePath: string): Promise<void> {
