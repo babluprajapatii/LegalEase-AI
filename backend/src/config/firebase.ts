@@ -22,7 +22,8 @@ export function getFirebaseAdmin(): App {
     env.FIREBASE_PROJECT_ID ||
     process.env.FIREBASE_PROJECT_ID ||
     env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
-    '';
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    'legalease-ai-78a55';
   const clientEmail = env.FIREBASE_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL;
   let privateKey = env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY;
 

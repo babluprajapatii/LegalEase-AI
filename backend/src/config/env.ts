@@ -1,4 +1,12 @@
 import { z } from 'zod';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Pre-load environment variables from root or backend directory before schema validation
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config();
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
@@ -7,7 +15,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1).default('dev-secret-change-in-production'),
 
   // Firebase Admin & GCP Storage Configuration
-  FIREBASE_PROJECT_ID: z.string().optional(),
+  FIREBASE_PROJECT_ID: z.string().default('legalease-ai-78a55'),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
   GCS_BUCKET_NAME: z.string().optional(),
@@ -15,13 +23,13 @@ const envSchema = z.object({
   // Frontend Firebase Public Config (for context reference)
   NEXT_PUBLIC_FIREBASE_API_KEY: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: z.string().optional(),
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: z.string().optional(),
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: z.string().default('legalease-ai-78a55'),
   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
 
   // Phase 3 Gemini / Vertex AI Configuration
-  GCP_PROJECT_ID: z.string().optional(),
+  GCP_PROJECT_ID: z.string().default('legalease-ai-78a55'),
   GCP_LOCATION: z.string().default('us-central1'),
   VERTEX_AI_MODEL: z.string().default('gemini-1.5-pro'),
 });
