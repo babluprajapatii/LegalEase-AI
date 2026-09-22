@@ -1,13 +1,9 @@
 import { Router } from 'express';
+import { healthCheckHandler, metricsHandler } from '../handlers/observability';
 
 const router = Router();
 
-router.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
+router.get('/', healthCheckHandler);
+router.get('/metrics', metricsHandler);
 
 export default router;
