@@ -88,12 +88,13 @@ export type UploadProgressCallback = (loaded: number, total: number) => void;
 export function uploadToStorage(
   signedUrl: string,
   file: File,
+  contentType?: string,
   onProgress?: UploadProgressCallback,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', signedUrl, true);
-    xhr.setRequestHeader('Content-Type', file.type);
+    xhr.setRequestHeader('Content-Type', contentType || file.type || 'application/octet-stream');
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
