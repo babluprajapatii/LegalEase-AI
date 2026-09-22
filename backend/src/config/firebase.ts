@@ -68,5 +68,10 @@ export function getFirestoreDb(): Firestore {
 }
 
 export function getStorageBucket() {
-  return getStorage(getFirebaseAdmin()).bucket(env.GCS_BUCKET_NAME);
+  const bucketName =
+    env.GCS_BUCKET_NAME && env.GCS_BUCKET_NAME !== 'your_bucket_name_here'
+      ? env.GCS_BUCKET_NAME
+      : env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'legalease-ai-78a55.firebasestorage.app';
+
+  return getStorage(getFirebaseAdmin()).bucket(bucketName);
 }

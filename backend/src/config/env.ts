@@ -18,13 +18,13 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().default('legalease-ai-78a55'),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
-  GCS_BUCKET_NAME: z.string().optional(),
+  GCS_BUCKET_NAME: z.string().default('legalease-ai-78a55.firebasestorage.app'),
 
   // Frontend Firebase Public Config (for context reference)
   NEXT_PUBLIC_FIREBASE_API_KEY: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: z.string().default('legalease-ai-78a55'),
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: z.string().optional(),
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: z.string().default('legalease-ai-78a55.firebasestorage.app'),
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
 
@@ -41,14 +41,19 @@ function validateEnv() {
     process.exit(1);
   }
 
-  if (
-    result.data.JWT_SECRET === 'dev-secret-change-in-production' &&
-    result.data.NODE_ENV === 'production'
-  ) {
+  const data = result.data;
+
+  // Sanitize placeholder GCS_BUCKET_NAME values
+  if (!data.GCS_BUCKET_NAME || data.GCS_BUCKET_NAME === 'your_bucket_name_here') {
+    data.GCS_BUCKET_NAME =
+      data.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'legalease-ai-78a55.firebasestorage.app';
+  }
+
+  if (data.JWT_SECRET === 'dev-secret-change-in-production' && data.NODE_ENV === 'production') {
     console.warn('⚠️  JWT_SECRET is using the default value in production mode.');
   }
 
-  return result.data;
+  return data;
 }
 
 export const env = validateEnv();
