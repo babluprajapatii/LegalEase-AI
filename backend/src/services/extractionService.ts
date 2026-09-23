@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse');
 import mammoth from 'mammoth';
 import { logger } from '../utils/logging';
 
@@ -73,9 +71,9 @@ export class ExtractionService {
     let pageCount = 1;
 
     if (contentType === 'application/pdf') {
-      const parsed = await pdfParse(buffer);
-      rawText = parsed.text;
-      pageCount = parsed.numpages || 1;
+      const pdfResult = await this.extractPdfText(buffer);
+      rawText = pdfResult.text;
+      pageCount = pdfResult.pageCount;
     } else if (
       contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       contentType === 'application/docx'
@@ -94,9 +92,15 @@ export class ExtractionService {
     }
 
     const normalizedText = this.normalizeText(rawText);
-    const wordCount = this.countWords(normalizedText);
+    const contentWithoutMarkers = normalizedText.replace(/-- \d+ of \d+ --/g, '').trim();
+    const wordCount = this.countWords(contentWithoutMarkers);
 
-    if (wordCount === 0 || normalizedText.trim().length === 0) {
+    if (wordCount === 0 || contentWithoutMarkers.length === 0) {
+      if (contentType === 'application/pdf') {
+        throw new Error(
+          'UNSUPPORTED_PDF_CONTENT: This PDF does not contain extractable text. OCR is required for scanned/image-only PDFs.',
+        );
+      }
       throw new Error('Empty or unextractable document content.');
     }
 
@@ -114,6 +118,52 @@ export class ExtractionService {
       pageCount,
       wordCount,
       chunks,
+    };
+  }
+
+  /**
+   * Dedicated PDF extraction function that parses PDF binary data via PDFParse,
+   * handles multi-page documents, and detects empty/scanned PDFs.
+   */
+  async extractPdfText(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
+    if (!buffer || buffer.length === 0) {
+      throw new Error('PDF_EMPTY_BUFFER: PDF buffer is empty (0 bytes).');
+    }
+
+    let rawText = '';
+    let pageCount = 1;
+    let parser: any = null;
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PDFParse } = require('pdf-parse');
+      const uint8Array = new Uint8Array(buffer);
+      parser = new PDFParse({ data: uint8Array });
+      const result = await parser.getText();
+      rawText = result.text || '';
+      pageCount = result.total || 1;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.startsWith('PDF_') || message.startsWith('UNSUPPORTED_')) {
+        throw err;
+      }
+      logger.error('PDF parsing failed', { error: message });
+      throw new Error(
+        `PDF_PARSE_FAILED: Failed to parse PDF document. The file may be corrupt or password protected. (${message})`,
+      );
+    } finally {
+      if (parser && typeof parser.destroy === 'function') {
+        try {
+          await parser.destroy();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+
+    return {
+      text: rawText,
+      pageCount,
     };
   }
 
