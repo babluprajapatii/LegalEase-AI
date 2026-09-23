@@ -120,33 +120,6 @@ function UploadContent() {
     [handleFileSelect],
   );
 
-  // Helper to reliably convert file to base64 via FileReader web API
-  const fileToBase64 = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        const base64 = dataUrl.split(',')[1] || '';
-        resolve(base64);
-      };
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(file);
-    });
-  }, []);
-
-  // Helper to resolve MIME type from file extension if file.type is empty
-  const getFileContentType = useCallback((file: File): string => {
-    if (file.type && file.type.trim().length > 0) {
-      return file.type;
-    }
-    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    if (ext === '.pdf') return 'application/pdf';
-    if (ext === '.docx')
-      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    if (ext === '.txt') return 'text/plain';
-    return 'application/octet-stream';
-  }, []);
-
   // Upload pipeline using real GCS signed URL with server-side direct fallback
   const handleUpload = useCallback(async () => {
     if (!selectedFile || !token) return;
@@ -156,26 +129,19 @@ function UploadContent() {
     setStage('uploading');
     setProgress(0);
 
-    const resolvedContentType = getFileContentType(selectedFile);
-
     try {
       const uploadData = await initiateUpload(
         token,
         selectedFile.name,
-        resolvedContentType,
+        selectedFile.type || 'application/octet-stream',
         selectedFile.size,
       );
 
       let directGcsUploadFailed = false;
       try {
-        await uploadToStorage(
-          uploadData.signedUploadUrl,
-          selectedFile,
-          uploadData.metadata?.contentType || resolvedContentType,
-          (loaded, total) => {
-            setProgress(Math.round((loaded / total) * 100));
-          },
-        );
+        await uploadToStorage(uploadData.signedUploadUrl, selectedFile, (loaded, total) => {
+          setProgress(Math.round((loaded / total) * 100));
+        });
       } catch {
         // Direct GCS CORS/network error - set flag to use direct server-side upload fallback
         directGcsUploadFailed = true;
@@ -184,16 +150,39 @@ function UploadContent() {
       setStage('validating');
       setProgress(100);
 
+      /**
+       * Encodes the selected file as a base64 string for server-side processing.
+       * Only called when GCS upload/download is unavailable.
+       */
+      const encodeFileAsBase64 = async (): Promise<string | undefined> => {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return typeof btoa === 'function' ? btoa(binary) : undefined;
+      };
+
       let base64Data: string | undefined;
       if (directGcsUploadFailed) {
-        try {
-          base64Data = await fileToBase64(selectedFile);
-        } catch (b64Err) {
-          console.error('Failed to encode fallback base64 file data:', b64Err);
-        }
+        base64Data = await encodeFileAsBase64();
       }
 
-      const result = await confirmUpload(token, uploadData.documentId, base64Data);
+      let result;
+      try {
+        result = await confirmUpload(token, uploadData.documentId, base64Data);
+      } catch (confirmErr) {
+        const errMessage = confirmErr instanceof Error ? confirmErr.message : '';
+        // 503 storage_unavailable: GCS succeeded for upload but backend can't download (local dev).
+        // Retry by sending the file buffer directly so the backend can process it without GCS.
+        if (errMessage === 'storage_unavailable') {
+          base64Data = await encodeFileAsBase64();
+          result = await confirmUpload(token, uploadData.documentId, base64Data);
+        } else {
+          throw confirmErr;
+        }
+      }
 
       if (result.processingStatus === 'failed') {
         setStage('failed');

@@ -188,23 +188,46 @@ export class DocumentService {
       processingStatus: ProcessingStatus.VALIDATING,
     });
 
-    try {
-      // Step 2: Download buffer or use provided buffer
-      let buffer: Buffer;
-      if (providedBuffer) {
-        buffer = providedBuffer;
-        // Upload to Cloud Storage server-side
+    // Step 2: Download buffer or use provided buffer.
+    // NOTE: GCS download errors are thrown (not silently set to FAILED) so the
+    // caller can detect them and retry with a server-side file buffer if needed.
+    let buffer: Buffer;
+    if (providedBuffer) {
+      buffer = providedBuffer;
+      // Upload the provided buffer to Cloud Storage server-side (best-effort, non-fatal).
+      try {
         await this.storageService.uploadFileBuffer(
           metadata.storagePath || `users/${userId}/documents/${documentId}/original`,
           buffer,
           metadata.contentType,
         );
-      } else {
+      } catch (uploadErr) {
+        logger.warn('Server-side buffer upload to GCS failed (non-fatal, continuing processing)', {
+          documentId,
+          error: uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+        });
+      }
+    } else {
+      // No buffer provided — attempt to download from GCS.
+      // If GCS is unavailable (e.g. local dev without credentials), throw so the
+      // handler returns 500 and the frontend can recover via the buffer fallback path.
+      try {
         buffer = await this.storageService.downloadFileBuffer(
           metadata.storagePath || `users/${userId}/documents/${documentId}/original`,
         );
+      } catch (downloadErr) {
+        const message = downloadErr instanceof Error ? downloadErr.message : String(downloadErr);
+        logger.error(
+          'GCS download failed for document processing — re-throwing for caller to handle',
+          { documentId, error: message },
+        );
+        // Re-throw: this is a storage/infrastructure error, not a document content error.
+        // Do NOT set processingStatus=FAILED here — the document may be valid; storage is unreachable.
+        throw new Error(`storage_unavailable: ${message}`);
       }
+    }
 
+    try {
       // Step 3: Validate magic byte file signature
       const isSignatureValid = this.extractionService.validateFileSignature(
         buffer,
@@ -246,7 +269,7 @@ export class DocumentService {
       return updatedMetadata;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      logger.error('Document processing failed', { documentId, error: message });
+      logger.error('Document content processing failed', { documentId, error: message });
 
       return await this.firestoreService.updateDocument(documentId, {
         processingStatus: ProcessingStatus.FAILED,

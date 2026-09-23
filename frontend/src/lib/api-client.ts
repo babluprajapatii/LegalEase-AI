@@ -62,6 +62,12 @@ export async function confirmUpload(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    // 503 signals GCS is unreachable — surface specifically so caller can retry with buffer
+    if (response.status === 503 && errorData.error === 'storage_unavailable') {
+      const err = new Error('storage_unavailable');
+      (err as Error & { isStorageUnavailable: boolean }).isStorageUnavailable = true;
+      throw err;
+    }
     throw new Error(errorData.error || errorData.message || 'Document processing failed');
   }
 
@@ -88,13 +94,12 @@ export type UploadProgressCallback = (loaded: number, total: number) => void;
 export function uploadToStorage(
   signedUrl: string,
   file: File,
-  contentType?: string,
   onProgress?: UploadProgressCallback,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', signedUrl, true);
-    xhr.setRequestHeader('Content-Type', contentType || file.type || 'application/octet-stream');
+    xhr.setRequestHeader('Content-Type', file.type);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {

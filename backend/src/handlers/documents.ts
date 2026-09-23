@@ -121,6 +121,16 @@ router.post(
         res.status(403).json({ success: false, error: message });
         return;
       }
+      // storage_unavailable: GCS download failed — document may be valid, storage is unreachable.
+      // Return 503 so the frontend can retry by sending the file buffer directly.
+      if (message.includes('storage_unavailable')) {
+        res.status(503).json({
+          success: false,
+          error: 'storage_unavailable',
+          message: 'Could not retrieve document from storage. Please retry the upload.',
+        });
+        return;
+      }
 
       logger.error('Confirm and process upload failed', {
         documentId: req.params.id,
