@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParse = require('pdf-parse');
 import mammoth from 'mammoth';
 import { logger } from '../utils/logging';
 
@@ -60,6 +62,59 @@ export class ExtractionService {
   }
 
   /**
+   * Dedicated PDF extraction function accepting raw binary Buffer.
+   */
+  async extractPdfText(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
+    if (!buffer || buffer.length === 0) {
+      throw new Error('PDF_EMPTY_BUFFER: PDF document buffer is empty (0 bytes).');
+    }
+
+    if (!this.validateFileSignature(buffer, 'application/pdf')) {
+      throw new Error('PDF_PARSE_FAILED: Invalid PDF signature. Header magic bytes %PDF- missing.');
+    }
+
+    let rawText = '';
+    let pageCount = 1;
+
+    try {
+      if (typeof pdfParse === 'function') {
+        const parsed = await pdfParse(buffer);
+        rawText = parsed.text || '';
+        pageCount = parsed.numpages || 1;
+      } else if (pdfParse && typeof pdfParse.PDFParse === 'function') {
+        const parser = new pdfParse.PDFParse({ data: buffer });
+        const parsed = await parser.getText();
+        rawText = parsed.text || '';
+        pageCount = parsed.total || (parsed.pages ? parsed.pages.length : 1);
+      } else if (pdfParse && pdfParse.default && typeof pdfParse.default === 'function') {
+        const parsed = await pdfParse.default(buffer);
+        rawText = parsed.text || '';
+        pageCount = parsed.numpages || 1;
+      } else {
+        throw new Error('PDF_PARSE_FAILED: Compatible PDF parser function or class not found.');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.startsWith('PDF_')) throw err;
+      throw new Error(`PDF_PARSE_FAILED: Failed to parse PDF binary structure. ${message}`);
+    }
+
+    const normalizedText = this.normalizeText(rawText);
+    const contentText = normalizedText.replace(/^-- \d+ of \d+ --$/gm, '').trim();
+
+    if (!contentText || contentText.length === 0) {
+      throw new Error(
+        'PDF_EMPTY_TEXT: This PDF does not contain extractable text. OCR is required for scanned/image-only PDFs.',
+      );
+    }
+
+    return {
+      text: normalizedText,
+      pageCount,
+    };
+  }
+
+  /**
    * Main entry point for extracting text based on file type.
    */
   async extractText(buffer: Buffer, contentType: string): Promise<ExtractedDocument> {
@@ -92,15 +147,9 @@ export class ExtractionService {
     }
 
     const normalizedText = this.normalizeText(rawText);
-    const contentWithoutMarkers = normalizedText.replace(/-- \d+ of \d+ --/g, '').trim();
-    const wordCount = this.countWords(contentWithoutMarkers);
+    const wordCount = this.countWords(normalizedText);
 
-    if (wordCount === 0 || contentWithoutMarkers.length === 0) {
-      if (contentType === 'application/pdf') {
-        throw new Error(
-          'UNSUPPORTED_PDF_CONTENT: This PDF does not contain extractable text. OCR is required for scanned/image-only PDFs.',
-        );
-      }
+    if (wordCount === 0 || normalizedText.trim().length === 0) {
       throw new Error('Empty or unextractable document content.');
     }
 
@@ -118,52 +167,6 @@ export class ExtractionService {
       pageCount,
       wordCount,
       chunks,
-    };
-  }
-
-  /**
-   * Dedicated PDF extraction function that parses PDF binary data via PDFParse,
-   * handles multi-page documents, and detects empty/scanned PDFs.
-   */
-  async extractPdfText(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
-    if (!buffer || buffer.length === 0) {
-      throw new Error('PDF_EMPTY_BUFFER: PDF buffer is empty (0 bytes).');
-    }
-
-    let rawText = '';
-    let pageCount = 1;
-    let parser: any = null;
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { PDFParse } = require('pdf-parse');
-      const uint8Array = new Uint8Array(buffer);
-      parser = new PDFParse({ data: uint8Array });
-      const result = await parser.getText();
-      rawText = result.text || '';
-      pageCount = result.total || 1;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.startsWith('PDF_') || message.startsWith('UNSUPPORTED_')) {
-        throw err;
-      }
-      logger.error('PDF parsing failed', { error: message });
-      throw new Error(
-        `PDF_PARSE_FAILED: Failed to parse PDF document. The file may be corrupt or password protected. (${message})`,
-      );
-    } finally {
-      if (parser && typeof parser.destroy === 'function') {
-        try {
-          await parser.destroy();
-        } catch {
-          // ignore cleanup errors
-        }
-      }
-    }
-
-    return {
-      text: rawText,
-      pageCount,
     };
   }
 

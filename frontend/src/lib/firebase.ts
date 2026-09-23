@@ -153,13 +153,13 @@ export const getCurrentUser = (): User | null => {
   return currentAuth ? currentAuth.currentUser : null;
 };
 
-export const getUserToken = async (): Promise<string | null> => {
+export const getUserToken = async (forceRefresh = false): Promise<string | null> => {
   try {
     const currentAuth = getFirebaseAuth();
     if (!currentAuth) return null;
     const user = currentAuth.currentUser;
     if (!user) return null;
-    return await user.getIdToken();
+    return await user.getIdToken(forceRefresh);
   } catch {
     return null;
   }

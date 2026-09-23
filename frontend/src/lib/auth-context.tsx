@@ -32,13 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentUser = getCurrentUser();
     if (currentUser) {
       setUser(currentUser);
+      getUserToken(true).then((t) => setToken(t));
     }
     setLoading(false);
 
     const unsubscribe = onAuthStateChangedListener(async (user) => {
       setUser(user);
       if (user) {
-        const userToken = await getUserToken();
+        const userToken = await getUserToken(true);
         setToken(userToken);
       } else {
         setToken(null);

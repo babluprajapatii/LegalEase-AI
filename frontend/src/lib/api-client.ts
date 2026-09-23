@@ -62,12 +62,6 @@ export async function confirmUpload(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    // 503 signals GCS is unreachable — surface specifically so caller can retry with buffer
-    if (response.status === 503 && errorData.error === 'storage_unavailable') {
-      const err = new Error('storage_unavailable');
-      (err as Error & { isStorageUnavailable: boolean }).isStorageUnavailable = true;
-      throw err;
-    }
     throw new Error(errorData.error || errorData.message || 'Document processing failed');
   }
 

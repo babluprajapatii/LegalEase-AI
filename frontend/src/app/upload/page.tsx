@@ -150,39 +150,21 @@ function UploadContent() {
       setStage('validating');
       setProgress(100);
 
-      /**
-       * Encodes the selected file as a base64 string for server-side processing.
-       * Only called when GCS upload/download is unavailable.
-       */
-      const encodeFileAsBase64 = async (): Promise<string | undefined> => {
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        return typeof btoa === 'function' ? btoa(binary) : undefined;
-      };
-
       let base64Data: string | undefined;
       if (directGcsUploadFailed) {
-        base64Data = await encodeFileAsBase64();
+        base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const base64 = dataUrl.split(',')[1];
+            resolve(base64 || '');
+          };
+          reader.onerror = () => reject(new Error('Failed to read file buffer'));
+          reader.readAsDataURL(selectedFile);
+        });
       }
 
-      let result;
-      try {
-        result = await confirmUpload(token, uploadData.documentId, base64Data);
-      } catch (confirmErr) {
-        const errMessage = confirmErr instanceof Error ? confirmErr.message : '';
-        // 503 storage_unavailable: GCS succeeded for upload but backend can't download (local dev).
-        // Retry by sending the file buffer directly so the backend can process it without GCS.
-        if (errMessage === 'storage_unavailable') {
-          base64Data = await encodeFileAsBase64();
-          result = await confirmUpload(token, uploadData.documentId, base64Data);
-        } else {
-          throw confirmErr;
-        }
-      }
+      const result = await confirmUpload(token, uploadData.documentId, base64Data);
 
       if (result.processingStatus === 'failed') {
         setStage('failed');
