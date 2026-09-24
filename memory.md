@@ -141,7 +141,7 @@ Parallel notes:
 
 ## Current Status
 
-Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK, Phase 6.2 Pre-deployment container audit, and Phase 6.2-A environment setup audited; live Cloud Run deployment blocked because `winget` installation of `gcloud` and `docker` requires interactive Administrator UAC elevation.
+Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK, Phase 6.2 Pre-deployment container audit, Phase 6.2-A setup, and Phase 6.2-B live GCP audit verified locally; live GCP resource querying & Cloud Run deployment blocked by unauthenticated `gcloud` session on local host.
 
 | Area                | Status        |
 | ------------------- | ------------- |
@@ -161,20 +161,20 @@ Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) p
 | Testing             | 84/84 PASS ✅ |
 | Accessibility       | VERIFIED ✅   |
 | Deployment (Local)  | VERIFIED ✅   |
-| Deployment (Cloud)  | BLOCKED ⛔ (`gcloud`/`docker` install requires admin UAC elevation) |
+| Deployment (Cloud)  | BLOCKED ⛔ (Unauthenticated `gcloud` on host) |
 | Hackathon Demo      | SCRIPT READY ✅ |
 
 ## Current Phase
 
-Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6.2-A Audited, Cloud Deployment Blocked ⛔)
+Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6.2-B GCP Audited, Cloud Deployment Blocked ⛔)
 
 Objective: Provision GCP Secret Manager, deploy Cloud Run backend, record demo video.
 
-Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, deployment environment tooling check, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
+Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, deployment environment check, live GCP audit specification, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
 
-Blockers: Silent installation of `gcloud` via `winget` stalled waiting for Administrator UAC elevation; Docker Desktop requires system virtualization / admin rights.
+Blockers: Live GCP resource querying and Cloud Run container deployment blocked by unauthenticated `gcloud` session on local Windows host.
 
-Next: Manually install `gcloud` CLI & Docker Desktop with Admin rights on host or run in GCP Cloud Shell / CI runner.
+Next: Authenticate `gcloud` CLI (`gcloud auth login`) in an administrative shell, GCP Cloud Shell, or CI runner environment.
 
 ## Important Decisions
 
