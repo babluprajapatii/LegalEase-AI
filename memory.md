@@ -141,7 +141,7 @@ Parallel notes:
 
 ## Current Status
 
-Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK, Phase 6.2 Pre-deployment container audit, Phase 6.2-A setup, and Phase 6.2-B live GCP audit verified locally; live GCP resource querying & Cloud Run deployment blocked by unauthenticated `gcloud` session on local host.
+Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK, Phase 6.2 container audit, Phase 6.2-A setup, Phase 6.2-B live GCP audit, and Phase 6-FREE.1 zero-cost backup audit verified locally; zero-cost Render deployment path audited as emergency fallback; official Cloud Run deployment pending live GCP authentication.
 
 | Area                | Status        |
 | ------------------- | ------------- |
@@ -161,20 +161,21 @@ Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) p
 | Testing             | 84/84 PASS ✅ |
 | Accessibility       | VERIFIED ✅   |
 | Deployment (Local)  | VERIFIED ✅   |
+| Deployment (Backup) | AUDITED READY ✅ (Render Free emergency fallback) |
 | Deployment (Cloud)  | BLOCKED ⛔ (Unauthenticated `gcloud` on host) |
 | Hackathon Demo      | SCRIPT READY ✅ |
 
 ## Current Phase
 
-Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6.2-B GCP Audited, Cloud Deployment Blocked ⛔)
+Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6-FREE.1 Backup Audited ⏳)
 
 Objective: Provision GCP Secret Manager, deploy Cloud Run backend, record demo video.
 
-Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, deployment environment check, live GCP audit specification, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
+Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, deployment environment check, live GCP audit specification, Zero-cost Render Free backup deployment audit, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
 
-Blockers: Live GCP resource querying and Cloud Run container deployment blocked by unauthenticated `gcloud` session on local Windows host.
+Blockers: Official Cloud Run production deployment pending live `gcloud` authentication in a GCP environment. Zero-cost backup track audited as emergency fallback path only.
 
-Next: Authenticate `gcloud` CLI (`gcloud auth login`) in an administrative shell, GCP Cloud Shell, or CI runner environment.
+Next: Authenticate `gcloud` CLI (`gcloud auth login`) for official Cloud Run deployment, or optionally deploy Render emergency fallback if GCP billing unavailable.
 
 ## Important Decisions
 
