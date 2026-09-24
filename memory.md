@@ -141,7 +141,7 @@ Parallel notes:
 
 ## Current Status
 
-Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK, Phase 6.2 container audit, Phase 6.2-A setup, Phase 6.2-B live GCP audit, Phase 6-FREE.1 backup audit, Phase 6-FREE.2 GCP feasibility audit, and Phase 6-FREE.3 credit/trial audit verified; existing promotional/education/trial credit verification REQUIRES USER ACTION in GCP Console.
+Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK, Phase 6.2 container audit, Phase 6.2-A setup, Phase 6.2-B live GCP audit, Phase 6-FREE.1 backup audit, Phase 6-FREE.2 GCP feasibility audit, Phase 6-FREE.3 credit audit, & Phase 6-FREE.4 Render emergency backup configuration documented; Render Free deployment instructions provided as emergency fallback.
 
 | Area                | Status        |
 | ------------------- | ------------- |
@@ -161,21 +161,21 @@ Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) p
 | Testing             | 84/84 PASS ✅ |
 | Accessibility       | VERIFIED ✅   |
 | Deployment (Local)  | VERIFIED ✅   |
-| Deployment (Backup) | AUDITED READY ✅ (Render Free emergency fallback) |
+| Deployment (Backup) | AUDITED READY ✅ (Render Free emergency fallback documented) |
 | Deployment (Cloud)  | BLOCKED ⛔ (GCP Billing / $300 Free Trial activation required) |
 | Hackathon Demo      | SCRIPT READY ✅ |
 
 ## Current Phase
 
-Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6-FREE.3 Credit Audit Completed ⏳)
+Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6-FREE.4 Render Backup Documented ⏳)
 
 Objective: Provision GCP Secret Manager, deploy Cloud Run backend, record demo video.
 
-Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, deployment environment check, live GCP audit specification, Zero-cost Render Free backup deployment audit, GCP Free/Trial Feasibility Audit, Existing Credits/Trial Audit, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
+Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, deployment environment check, live GCP audit specification, Zero-cost Render Free backup deployment audit, GCP Free/Trial Feasibility Audit, Existing Credits Audit, Render Free Emergency Backup Configuration, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
 
-Blockers: Unlocking Cloud Run, Artifact Registry, Secret Manager, and Vertex AI requires developer to activate $300 GCP Free Trial or redeem promo credits in GCP Console.
+Blockers: Unlocking Cloud Run, Artifact Registry, Secret Manager, and Vertex AI requires developer to activate $300 GCP Free Trial or redeem promo credits in GCP Console. Render CLI/API credentials unavailable locally; step-by-step manual Render Dashboard deployment instructions documented.
 
-Next: Developer activates $300 GCP Free Trial / links billing account in GCP Console to proceed with Cloud Run deployment.
+Next: Activate $300 GCP Free Trial in GCP Console for official Cloud Run deployment, or follow manual Render Dashboard steps for emergency demo deployment.
 
 ## Important Decisions
 
