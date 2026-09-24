@@ -141,39 +141,40 @@ Parallel notes:
 
 ## Current Status
 
-No source implementation is verified in the repository. Only project documentation is present.
+Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete with Phase 6.1 Secret Manager SDK integration, health metrics endpoints, Docker setup, and demo script verified locally.
 
 | Area                | Status        |
 | ------------------- | ------------- |
 | Foundation          | VERIFIED ✅   |
-| Authentication      | NOT STARTED   |
-| Upload              | NOT STARTED   |
-| Document Processing | NOT STARTED   |
-| Gemini Integration  | NOT STARTED   |
-| Document Analysis   | NOT STARTED   |
-| Simplification      | NOT STARTED   |
-| Risk Detection      | NOT STARTED   |
-| Q&A                 | NOT STARTED   |
-| Comparison          | NOT STARTED   |
-| Next Steps          | NOT STARTED   |
-| History             | NOT STARTED   |
-| Security            | BASELINE ✅   |
-| Testing             | 16/16 PASS ✅ |
-| Accessibility       | NOT STARTED   |
-| Deployment          | NOT STARTED   |
-| Hackathon Demo      | NOT STARTED   |
+| Authentication      | VERIFIED ✅   |
+| Upload              | VERIFIED ✅   |
+| Document Processing | VERIFIED ✅   |
+| Gemini Integration  | VERIFIED ✅   |
+| Document Analysis   | VERIFIED ✅   |
+| Simplification      | VERIFIED ✅   |
+| Risk Detection      | VERIFIED ✅   |
+| Q&A                 | VERIFIED ✅   |
+| Comparison          | VERIFIED ✅   |
+| Next Steps          | VERIFIED ✅   |
+| History             | VERIFIED ✅   |
+| Security            | HARDENED ✅   |
+| Testing             | 84/84 PASS ✅ |
+| Accessibility       | VERIFIED ✅   |
+| Deployment (Local)  | VERIFIED ✅   |
+| Deployment (Cloud)  | PENDING ⏳    |
+| Hackathon Demo      | SCRIPT READY ✅ |
 
 ## Current Phase
 
-Current Phase: Phase 1 — Foundation, Project Setup & Security Baseline (VERIFIED ✅)
+Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6.1 Complete Locally ⏳)
 
-Objective: Establish project foundation with security baseline, verified builds, and passing tests.
+Objective: Provision GCP Secret Manager, deploy Cloud Run backend, record demo video.
 
-Completed: Project structure, TypeScript strict mode, ESLint/Prettier, backend/frontend builds, 16/16 tests passing, security rules (firestore.rules, storage.rules), shared types, secret scan clean, .env.example comprehensive.
+Completed: `@google-cloud/secret-manager` SDK integration, Secret Manager fallback & error handling, Docker container setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
 
-Remaining `[~]` items: Cloud provisioning (Firebase/GCP project setup) and Cloud Run deployment — these require live credentials and are deferred to evaluator setup.
+Remaining: Live GCP Secret Manager provisioning, Cloud Run deployment, video recording.
 
-Next: Phase 2 — Authentication, Document Upload & Document Processing.
+Next: Phase 6.2 — Live GCP Infrastructure & Cloud Run Deployment.
 
 ## Important Decisions
 

@@ -16,7 +16,11 @@
     "prepare": "npm run lint && npm run typecheck && npm run format"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/helmet": "^4.0.0",
     "@types/node": "^22.0.0",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -26,10 +30,25 @@
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "prettier": "^3.3.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.0"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.2.0",
+    "@google-cloud/secret-manager": "^7.1.0",
+    "@google-cloud/storage": "^8.2.0",
+    "@google-cloud/vertexai": "^1.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
     "express-rate-limit": "^8.7.0",
-    "express-validator": "^7.3.2"
+    "express-validator": "^7.3.2",
+    "firebase-admin": "^14.4.0",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.12.3",
+    "pdf-parse": "^2.4.5",
+    "winston": "^3.19.0",
+    "zod": "^3.23.8"
   }
 }

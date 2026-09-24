@@ -63,3 +63,44 @@ test('deploymentObservability - getSecret falls back to process.env in local dev
   assert.equal(val, 'mock_secret_value');
   delete process.env.TEST_SECRET_KEY;
 });
+
+test('deploymentObservability - getSecret gracefully handles production fallback when Secret Manager is unauthenticated', async () => {
+  const originalEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  delete process.env.USE_LOCAL_SECRETS;
+  process.env.TEST_PROD_SECRET = 'prod_env_fallback';
+
+  const val = await getSecret('TEST_PROD_SECRET');
+  assert.equal(val, 'prod_env_fallback');
+
+  process.env.NODE_ENV = originalEnv;
+  delete process.env.TEST_PROD_SECRET;
+});
+
+test('deploymentObservability - verifies no server private secrets exist in frontend directory', () => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const frontendDir = path.resolve(__dirname, '../../frontend/src');
+  const files: string[] = [];
+
+  function walk(dir: string) {
+    for (const item of fs.readdirSync(dir)) {
+      const fullPath = path.join(dir, item);
+      if (fs.statSync(fullPath).isDirectory()) {
+        walk(fullPath);
+      } else if (fullPath.endsWith('.ts') || fullPath.endsWith('.tsx')) {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  walk(frontendDir);
+  for (const file of files) {
+    const content = fs.readFileSync(file, 'utf-8');
+    assert.equal(content.includes('FIREBASE_PRIVATE_KEY'), false, `File ${file} contains FIREBASE_PRIVATE_KEY`);
+    assert.equal(content.includes('FIREBASE_CLIENT_EMAIL'), false, `File ${file} contains FIREBASE_CLIENT_EMAIL`);
+    assert.equal(content.includes('JWT_SECRET'), false, `File ${file} contains JWT_SECRET`);
+  }
+});
+

@@ -50,7 +50,7 @@ function validateEnv() {
   }
 
   if (data.JWT_SECRET === 'dev-secret-change-in-production' && data.NODE_ENV === 'production') {
-    console.warn('⚠️  JWT_SECRET is using the default value in production mode.');
+    throw new Error('❌ Security Failure: JWT_SECRET must be explicitly configured in production environment.');
   }
 
   return data;
