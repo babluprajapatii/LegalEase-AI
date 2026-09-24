@@ -12,7 +12,8 @@
 - **Phase 2 (Auth, Upload & Document Processing):** Complete ✅
 - **Phase 3 (GenAI Legal Analysis):** Complete ✅
 - **Phase 4 (Q&A, Comparison & Legal Assistance):** Complete ✅
-- **Phase 6 (Deployment, Observability & Demo Readiness):** Partially Complete ⏳ (Phase 6.1 Secret Manager SDK & Phase 6.2 container audit verified locally; live Cloud Run deployment blocked by missing host `gcloud`/`docker` CLI tools and GCP credentials; health/telemetry routes, fallbacks, demo script, and evaluation criteria complete)
+- **Phase 6 (Deployment, Observability & Demo Readiness):** Partially Complete ⏳ (Phase 6.1 Secret Manager SDK, Phase 6.2 container audit, & Phase 6.2-A environment setup audited; live Cloud Run deployment blocked by UAC/elevation requirements for `gcloud`/`docker` CLI tools on host; health/telemetry routes, fallbacks, demo script, and evaluation criteria complete)
+
 
 
 
