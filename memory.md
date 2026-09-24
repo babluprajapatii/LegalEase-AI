@@ -141,7 +141,7 @@ Parallel notes:
 
 ## Current Status
 
-Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete with Phase 6.1 Secret Manager SDK integration, health metrics endpoints, Docker setup, and demo script verified locally.
+Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) partially complete: Phase 6.1 Secret Manager SDK & Phase 6.2 Pre-deployment container audit verified locally; live Cloud Run deployment blocked by missing host `gcloud`/`docker` tools and GCP credentials.
 
 | Area                | Status        |
 | ------------------- | ------------- |
@@ -161,20 +161,20 @@ Phases 1–5 complete & verified locally. Phase 6 (Deployment & Observability) p
 | Testing             | 84/84 PASS ✅ |
 | Accessibility       | VERIFIED ✅   |
 | Deployment (Local)  | VERIFIED ✅   |
-| Deployment (Cloud)  | PENDING ⏳    |
+| Deployment (Cloud)  | BLOCKED ⛔ (No `gcloud`/`docker` CLI on host) |
 | Hackathon Demo      | SCRIPT READY ✅ |
 
 ## Current Phase
 
-Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6.1 Complete Locally ⏳)
+Current Phase: Phase 6 — Deployment, Observability & Demo Readiness (Phase 6.2 Audited, Cloud Deployment Blocked ⛔)
 
 Objective: Provision GCP Secret Manager, deploy Cloud Run backend, record demo video.
 
-Completed: `@google-cloud/secret-manager` SDK integration, Secret Manager fallback & error handling, Docker container setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
+Completed: `@google-cloud/secret-manager` SDK integration, container architecture audit, Secret Manager fallback & error handling, Docker setup, health & telemetry routes (`/api/health`, `/api/health/metrics`), demo script (`docs/DEMO_SCRIPT.md`), evaluation criteria (`docs/EVALUATION_CRITERIA.md`), 84/84 passing tests.
 
-Remaining: Live GCP Secret Manager provisioning, Cloud Run deployment, video recording.
+Blockers: Live GCP deployment blocked due to missing `gcloud` and `docker` CLI tools and GCP authentication on the execution host.
 
-Next: Phase 6.2 — Live GCP Infrastructure & Cloud Run Deployment.
+Next: Install GCP CLI tools / authenticate GCP environment for live Cloud Run deployment.
 
 ## Important Decisions
 
