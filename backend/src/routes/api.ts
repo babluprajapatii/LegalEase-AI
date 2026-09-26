@@ -31,7 +31,7 @@ router.post(
         return;
       }
 
-      const { DocumentService } = await import('../services/documentService');
+      const { DocumentService } = await import('../services/documentService.js');
       const docService = new DocumentService();
       const result = await docService.analyzeDocument(documentId, req.user.uid);
 
@@ -74,7 +74,7 @@ router.post(
         return;
       }
 
-      const { DocumentService } = await import('../services/documentService');
+      const { DocumentService } = await import('../services/documentService.js');
       const docService = new DocumentService();
       const result = await docService.compareDocuments(documentId1, documentId2, req.user.uid);
 
