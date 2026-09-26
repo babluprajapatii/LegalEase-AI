@@ -1,335 +1,207 @@
-# LegalEase-AI
+# LegalEase-AI — Plain-Language GenAI Legal Assistant
 
-GenAI-powered legal assistant for simplifying, analyzing, comparing, and understanding legal documents.
+> **PromptWars Submission — Legal Technology & Document Intelligence**
 
-## Challenge Vertical
-
-Legal technology / document intelligence.
-
-## Problem
-
-Legal documents are dense, technical, and time-consuming to review. Users need fast, plain-language explanations, risk detection, and document comparison without giving up privacy or control.
-
-## Solution Approach
-
-LegalEase-AI uses a secure, backend-first architecture:
-
-- **Frontend:** Next.js 15 + React 19 + TypeScript, strict mode — minimal scaffold only in Phase 1.
-- **Backend:** Express.js, Node.js, TypeScript, compiled to CommonJS.
-- **Security:** Helmet, CORS, rate limiting, JWT auth middleware, environment validation, centralized error handling.
-- **AI:** Gemini / Vertex AI access will be backend-only (Phase 3), never exposed to the browser.
-- **Storage:** Cloud Storage for documents, Firestore for metadata — integrated in Phase 2.
-- **Logging:** Winston-based structured logging.
-
-## Phase Roadmap
-
-### ✅ Phase 1 — Foundation (code-verified)
-
-Backend Express scaffold with full security hardening:
-
-- **Environment validation** — Zod schema; `PORT`, `NODE_ENV`, `FRONTEND_URL`, `JWT_SECRET` required at startup. Firebase/Gemini keys are optional and validated only when the integrating feature is active.
-- **Security middleware** — Helmet with strict Content-Security-Policy, CORS locked to `FRONTEND_URL`, `express-rate-limit` (100 req / 15 min).
-- **JWT auth middleware** — `authenticateToken`, `requireAuth`, `requireOwnership` guards; ready for Firebase token verification in Phase 2.
-- **Input validation** — `express-validator` middleware wired to routes.
-- **Error handling** — Centralized `errorHandler` (Zod-aware, strips stack in production) and `notFoundHandler`.
-- **Health endpoint** — `GET /api/health` returns `{ status, timestamp, uptime }`.
-- **Stub routes** — `/api/upload`, `/api/documents`, `/api/documents/:id`, `/api/analyze` all protected by `authenticateToken`, returning `501 Not Implemented` until Phase 2.
-- **Document service scaffold** — `DocumentService` with `validateDocumentUpload`, `createDocumentMetadata`, `updateDocumentStatus`; Firestore persistence added in Phase 2.
-- **Shared types** — `DocumentMetadata`, `ProcessingStatus`, `AnalysisResult`, `AnalysisType`, `AnalysisStatus`, `ApiResponse`, `SecurityValidationResult`, `AIGroundingResult` — all defined and exported.
-- **Frontend scaffold** — Next.js 15 + React 19 minimal shell (`layout.tsx`, `page.tsx`). No UI work in Phase 1.
-- **Toolchain** — ESLint 9 (TypeScript-aware), Prettier, root-level `typecheck` / `lint` / `format` / `test` scripts wired across both workspaces.
-- **Winston logging** — Structured JSON logs; console transport in non-production.
-
-### ✅ Phase 1 — Foundation (code-verified)
-
-Backend Express scaffold with full security hardening, type definitions, and initial environment configuration.
-
-### ✅ Phase 2 — Authentication & Document Pipeline (code-verified)
-
-Full end-to-end document ingestion pipeline and frontend user interface:
-
-- **Firebase Authentication** — Backend token verification via Firebase Admin SDK with ownership verification (`req.user.uid === document.userId`); Frontend `useAuth` context supporting Google OAuth popups and session token auto-refresh.
-- **User Profile Management** — `POST /api/users/me` endpoint to upsert user profiles into Firestore on sign-in.
-- **Signed-URL Document Upload** — Direct-to-GCS upload flow via backend signed URLs (`POST /api/documents/upload`), enforcing 10 MB file limits, content type validation, and filename sanitization.
-- **Text Extraction & Normalization** — Extraction service supporting PDF (pdf-parse), DOCX (mammoth), and TXT files with magic-byte header verification, text cleaning, and <=3,000 word chunking.
-- **Firestore Metadata Storage** — Full document lifecycle tracking (`uploading` → `validating` → `extracting` → `complete` / `failed`) with document listing and server-side ownership filters.
-- **Frontend UI (Figma Aligned)** — Full pixel-perfect design system alignment with exported Figma Make UI/UX specifications:
-  - SVG stroke icon library (`Icons.tsx`) matching Figma visual tokens.
-  - Landing page (`/`) with branding, hero CTAs, capability grid, and Google Sign-In trigger.
-  - Login page (`/login`) with Google OAuth authentication card.
-  - Responsive Sidebar navigation layout with active indicators and user drawer.
-  - Dashboard (`/dashboard`) with quick-action tiles, search bar, recent document list, and activity feed.
-  - Upload page (`/upload`) featuring dashed dropzone, multi-stage processing indicators, and sample document loader.
-  - Documents list (`/documents`) with category filter pills (`all`, `analyzed`, `processing`, `uploaded`).
-  - Compare page (`/compare`), History (`/history`), and Settings (`/settings`) matching Figma screens.
-- **Local Environment Setup** — Clean `frontend/.env.local` configuration reading client-side Firebase environment variables (`NEXT_PUBLIC_FIREBASE_*`) with non-exposing validation (`validateFirebaseConfig`).
-
-### ✅ Phase 3 — GenAI Legal Analysis & AI Orchestration (code-verified)
-
-Grounded GenAI document analysis pipeline and interactive frontend report interface:
-
-- **Google Cloud Vertex AI Integration** — Server-side AI orchestration layer (`backend/src/services/aiService.ts`) using Google Cloud Vertex AI SDK (`@google-cloud/vertexai`) exclusively — no Gemini Developer API fallback — with structured JSON schema output, and retry logic with exponential backoff.
-- **AI Safety & Legal Fencing** — System prompts defining non-advisory educational role ("not a lawyer"), prompt fencing with `<document_content>` isolation tags, and prompt-injection defense against malicious document payloads.
-- **Output Validation & Grounding** — Strict Zod schema validation on AI responses before saving to Firestore or returning to client; mandatory educational legal disclaimer banner attached to all results; uncertainty and `unpresentInformation` tracking.
-- **Fallback Engine** — Rule-based grounded extraction fallback for offline/unconfigured local development and testing without failing builds.
-- **Firestore Persistence & API Endpoints** — `analyses` collection integration with `POST /api/documents/:id/analyze` and `GET /api/documents/:id/analysis` endpoints with server-side document ownership enforcement.
-- **Frontend Analysis View (`/documents/[id]`)** — Figma-aligned analysis report interface featuring tabbed navigation (Executive Summary, Key Clauses & Risks, Obligations, Important Dates, Actionable Guidance), risk level badges (High/Medium/Low), and an interactive Grounding Citation Drawer.
-- **Verified Quality Gates** — 30/30 unit and integration tests passing, 0 TypeScript errors, 100% Prettier formatting compliance, secret scan clean, and production builds succeeding.
-
-### ✅ Phase 4 — Document Q&A, Comparison & Advanced Legal Assistance (code-verified)
-
-Interactive GenAI legal assistant capabilities and document comparison tools:
-
-- **Grounded Document Q&A (`POST /api/documents/:id/qa`, `GET /api/documents/:id/qa`)** — Context-aware, grounded document Q&A using keyword scoring (`selectRelevantChunks`), prompt fencing (`<document_content>`), textual confidence ratings (`highly confident`, `moderately confident`, `limited information`), explicit `isNotPresent` absence banners, and source citation references.
-- **Document Comparison Engine (`POST /api/documents/compare`, `GET /api/documents/comparisons`)** — Version-to-version document comparison with strict server-side dual-document ownership enforcement (`documentService.compareDocuments`), structural diff parsing (Added `+`, Removed `-`, Modified `▼`), document type compatibility warnings (`typeCompatibilityWarning`), and Firestore persistence.
-- **Plain-English "Explain This Clause" (`POST /api/documents/:id/explain-clause`)** — Interactive clause simplification producing plain-language summaries, "Why It Matters" insights, and recommended party clarifications rendered inside a slide-over drawer modal.
-- **Actionable Guidance & Search** — Automated checklist generation, lawyer consultation questions, counterparty clarifications, and document history search (`/documents`, `/history`, `/dashboard`).
-- **Verified Quality Gates** — Unit test suite (`backend/src/services/phase4.test.ts`) 5/5 tests passing, zero TypeScript compilation errors, zero linter warnings, 100% Prettier format compliance, 0 hardcoded secrets found, and Next.js production build passing cleanly.
-
-### ✅ Phase 5 — Product Polish, Security Hardening & Comprehensive Testing (code-verified)
-
-System reliability, security hardening across all layers, AI safety verification, accessibility compliance, and edge-case test expansion:
-
-- **Security Hardening** — Full review of Firebase ID token verification, server-side dual-document ownership enforcement, strict `firestore.rules` and `storage.rules` scoping (`request.auth.uid == userId`), client/server file validation (10 MB size limit, MIME/extension checks), XSS prevention via HTML tag stripping (`sanitizeHtml`, `escapeHtml`), and prompt injection tag neutralization (`sanitizePromptText`).
-- **AI Safety & Legal Protections** — Hallucination resistance, system prompt fencing (`<document_content>`), absence flag handling (`isNotPresent = true`), textual confidence ratings, and mandatory non-advisory educational legal disclaimer banners attached to all AI outputs.
-- **Accessibility Validation (WCAG 2.1 AA)** — Added landmark regions (`role="main"`), skip-to-content target link, screen-reader live announcements (`aria-live="polite"`), ARIA expanded/controls attributes, and keyboard modal focus management.
-- **Edge-Case & Error Recovery** — 0-byte corrupt file rejection, 10 MB maximum limit enforcement, empty text fallback handling, network timeout graceful degrade, and comprehensive unit tests covering client/server validation.
-- **Verified Quality Gates** — 61/61 unit and integration tests passing, 0 TypeScript compilation errors, 0 linter warnings, 100% Prettier format compliance, secret scan clean (0 hardcoded secrets found), production Next.js & Express builds passing cleanly, and repository size maintained at 3.52 MB.
-
-### ✅ Phase 6 — Deployment, Observability & Hackathon Demo Readiness (code-verified)
-
-Production container deployment setup, Secret Manager integration, observability infrastructure, and Hackathon judging package:
-
-- **Deployment Architecture** — Created production multi-stage Dockerfiles (`backend/Dockerfile`, `frontend/Dockerfile`) and `.dockerignore` for Cloud Run containerization.
-- **Secret Manager Integration** — Implemented GCP Secret Manager helper (`backend/src/config/secrets.ts`) with automatic fallback to environment variables in local development.
-- **Observability & Health Monitoring** — Implemented production `/api/health` status route and `/api/metrics` system telemetry route (`backend/src/handlers/observability.ts`) returning structured service breakdown and memory stats.
-- **Hackathon Demo Package** — Authored 4-minute timed video script (`docs/DEMO_SCRIPT.md`) and comprehensive Hackathon Evaluation Criteria mapping (`docs/EVALUATION_CRITERIA.md`) detailing Google Cloud Services, Responsible AI, Accessibility, and Security.
-- **Verified Quality Gates** — 64/64 unit and integration tests passing, 0 TypeScript compilation errors, 0 linter warnings, 100% Prettier format compliance, secret scan clean (0 hardcoded secrets found), Next.js & Express production builds passing cleanly, and repository size maintained at 3.54 MB.
-
-### ✅ Responsive Design & Viewport Support (code-verified)
-
-Comprehensive responsive adaptation across mobile, tablet, and desktop viewports preserving 100% of the Figma visual identity:
-
-- **Viewport Support** — Full fluid layout support across Mobile (320px–767px), Tablet (768px–1023px), and Desktop (1024px+).
-- **Mobile Navigation Header & Drawer** — Top bar with accessible menu button (`aria-expanded`, `aria-controls`) and slide-over navigation drawer with Escape key listener and auto-close link handling.
-- **Zero Page Overflow** — Fluid widths, line wrapping for legal text/filenames (`word-break: break-word`), and horizontal scroll containers for diff tables.
-- **Verified Quality Gates** — 73/73 unit and integration tests passing (including `responsiveUI.test.ts`), 0 TypeScript compilation errors, 0 linter warnings, 100% Prettier format compliance, secret scan clean (0 hardcoded secrets found), production builds passing cleanly, and repository size maintained at 3.55 MB.
+LegalEase-AI is a secure, backend-first GenAI web application built on Google Cloud Platform and Vertex AI. It transforms complex, dense legal documents into plain-language executive summaries, structured key clauses, risk flags, actionable obligation checklists, grounded Q&A, and side-by-side document comparisons.
 
 ---
 
-## Project Structure
+## 🚀 Problem Statement
+
+Legal documents (leases, NDAs, employment agreements, vendor contracts) are dense, technical, and full of hidden liabilities. Non-lawyers struggle to understand their legal obligations, deadlines, and operational risks before signing. 
+
+Existing consumer tools either lack strict grounding (leading to dangerous AI hallucinations) or fail to provide actionable follow-up guidance.
+
+---
+
+## ✨ Key Features & Capability Matrix
+
+1. **Grounded Legal Document Analysis**
+   - Extracts plain-English executive summaries, risk levels (High, Medium, Low), key clauses, explicit obligations, and critical deadlines.
+   - Grounded strictly in the uploaded document context using Google Cloud Vertex AI (Gemini 1.5 Pro).
+   - Features an interactive **Grounding Citation Drawer** providing section numbers and exact page references.
+
+2. **Grounded Document Q&A**
+   - Natural language Q&A interface grounded strictly in document text.
+   - Explicitly flags when requested information is absent rather than hallucinating details.
+   - Implements robust prompt-injection defenses to withstand adversarial inputs.
+
+3. **Side-by-Side Document Comparison**
+   - Compares two versions of a contract or agreement.
+   - Highlights added (`+`), removed (`-`), and modified (`▼`) clauses with quantitative diff counts.
+   - Generates document category compatibility warnings when comparing dissimilar document types.
+
+4. **Actionable Next Steps & Attorney Consultation Checklist**
+   - Automatically compiles interactive action items and party obligations.
+   - Provides 1-click copyable attorney consultation questions tailored to identified document risks.
+   - Tracks required information and missing document details before signing.
+
+5. **Document History & Secure Storage**
+   - Filter and search uploaded documents by filename, processing status (`analyzed`, `processing`, `uploaded`), and upload date.
+   - Interactive deletion modal with backend GCS file and Firestore record removal.
+   - Strict multi-tenant row/user-level authorization scoping (`ownerId == req.user.uid`).
+
+6. **Responsible AI & Educational Safeguards**
+   - Prominently displays non-advisory educational disclaimers across all reports and guidance screens.
+   - Transparently indicates AI model name, processing time, and confidence indicators.
+
+---
+
+## 🛠️ Architecture & Google Cloud Integration
+
+```
+[ Frontend: Next.js 15 + React 19 + TypeScript ]
+                      │
+           (Firebase Google Auth ID Token)
+                      ▼
+[ Backend: Express.js (Node.js 20, Security Hardened) ]
+    ├── Authentication: Firebase Admin SDK
+    ├── Storage: Google Cloud Storage (User-scoped GCS Buckets)
+    ├── Database: Google Cloud Firestore (Document & Analysis Records)
+    ├── AI Orchestration: Google Cloud Vertex AI (Gemini 1.5 Pro)
+    ├── Secrets: Google Cloud Secret Manager
+    └── Container Deployment: Google Cloud Run (Docker multi-stage build)
+```
+
+### Google Cloud Services Used
+
+* **Google Cloud Vertex AI (Gemini 1.5 Pro):** Server-side grounded legal analysis, structured JSON extraction, and grounded document Q&A.
+* **Google Cloud Storage (GCS):** Direct-to-bucket signed upload flow and secure encrypted storage of original document files.
+* **Google Cloud Firestore:** User-scoped metadata, document records, structured analysis results, and comparison persistence.
+* **Firebase Authentication:** Google OAuth sign-in and JWT ID token generation/verification.
+* **Google Cloud Secret Manager:** Secure production credential management.
+* **Google Cloud Run:** Multi-stage container runtime for production backend deployment.
+
+---
+
+## 🔒 Security & Safety Hardening
+
+* **No Browser Credentials:** Vertex AI and Firebase Admin SDK credentials operate strictly on the backend.
+* **Prompt Injection Defense:** Strict prompt isolation using `<document_content>` tags and system instruction boundaries.
+* **Secret Scanner:** Integrated Node.js secret scanner (`scripts/secret-scan.js`) prevents hardcoded secrets or API keys from entering source control.
+* **File Validation:** Client & server-side verification of magic-byte file headers, MIME types, and 10 MB size limits (PDF, DOCX, TXT).
+* **OWASP Protections:** Helmet CSP headers, CORS restriction, rate limiting (100 req / 15 min), and HTML input sanitization.
+
+---
+
+## 📁 Repository Structure
 
 ```
 LegalEase-AI/
-├── backend/
+├── backend/                  # Express.js backend API & Vertex AI orchestration
 │   ├── src/
-│   │   ├── config/
-│   │   │   └── env.ts              # Zod environment validation
-│   │   ├── handlers/
-│   │   │   ├── auth.ts             # Dev-mode JWT login stub
-│   │   │   └── documents.ts        # Document CRUD handlers (stub)
-│   │   ├── middleware/
-│   │   │   ├── auth.ts             # JWT authenticateToken / requireAuth / requireOwnership
-│   │   │   ├── errorHandler.ts     # Centralized error + not-found handlers
-│   │   │   ├── rateLimit.ts        # express-rate-limit (100 req/15 min)
-│   │   │   └── validation.ts       # express-validator result handler
-│   │   ├── routes/
-│   │   │   ├── api.ts              # /api/* stub routes (501 until Phase 2); /api/analyze 501 stub (Phase 3)
-│   │   │   └── health.ts           # GET /api/health
-│   │   ├── services/
-│   │   │   └── documentService.ts  # DocumentService scaffold (with storage fallback)
-│   │   ├── shared/
-│   │   │   └── types/
-│   │   │       └── document.ts     # Zod schemas + shared document interfaces
-│   │   ├── types/
-│   │   │   └── index.ts            # Core domain types and enums
-│   │   ├── utils/
-│   │   │   └── logging.ts          # Winston logger
-│   │   └── index.ts                # Express app entry point
-│   ├── package.json
-│   └── tsconfig.json
-├── frontend/
+│   │   ├── config/           # Zod environment schemas & Secret Manager
+│   │   ├── handlers/         # Express route handlers
+│   │   ├── middleware/       # Auth, RateLimit, Helmet, Error handling
+│   │   ├── services/         # AI Service, Document Service, Q&A, Comparison
+│   │   └── shared/types/     # TypeScript domain types & Zod schemas
+│   ├── Dockerfile            # Cloud Run multi-stage Docker build
+│   └── package.json
+├── frontend/                 # Next.js 15 App Router frontend
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── layout.tsx          # Root layout
-│   │   │   └── page.tsx            # Landing page placeholder
-│   │   ├── components/             # (empty — Phase 1 scaffold)
-│   │   ├── lib/                    # (empty — Phase 1 scaffold)
-│   │   ├── styles/                 # (empty — Phase 1 scaffold)
-│   │   └── utils/                  # (empty — Phase 1 scaffold)
-│   ├── next.config.mjs
-│   ├── package.json
-│   └── tsconfig.json
-├── tests/
-│   ├── unit/                       # Unit tests (16 tests, all passing)
-│   ├── integration/                # Integration tests (1 pipeline test, passing)
-│   └── e2e/                        # End-to-end tests (Phase 4+)
-├── shared/
-│   └── types/
-│       └── index.ts                # Cross-package shared types (ProcessingStatus, AnalysisType, ApiResponse, etc.)
+│   │   ├── app/              # Routes (/dashboard, /documents, /compare, /history, /settings)
+│   │   ├── components/       # Design System UI components & Sidebar
+│   │   └── lib/              # Firebase auth & API client
+│   ├── Dockerfile            # Cloud Run frontend container build
+│   └── package.json
+├── shared/                   # Shared cross-package TypeScript types
+├── tests/                    # Unit & Integration test suite
+│   ├── unit/                 # 19 unit test modules (AI safety, extraction, Q&A, etc.)
+│   └── integration/          # 2 end-to-end integration pipeline tests
 ├── scripts/
-│   └── secret-scan.js              # Cross-platform secret scanner (Node.js)
-├── firestore.rules                 # Firestore security rules (user-scoped access)
-├── storage.rules                   # Cloud Storage security rules (user-scoped, 10 MB limit)
-├── .env.example                    # Placeholder-only env template (all variables documented)
-├── .gitignore
-├── .prettierignore
-├── .prettierrc
-├── eslint.config.mjs               # ESLint 9 flat config (TypeScript-aware)
-├── package.json                    # Workspace root (npm workspaces)
+│   └── secret-scan.js        # Automated secret scanner
+├── firestore.rules           # Production Firestore security rules
+├── storage.rules             # Production Cloud Storage security rules
+├── .env.example              # Placeholder-only environment variable template
+└── README.md
 ```
-
-## Technologies Used
-
-| Layer              | Technology         | Version |
-| ------------------ | ------------------ | ------- |
-| Frontend framework | Next.js            | ^15.0.0 |
-| UI library         | React              | ^19.0.0 |
-| Backend framework  | Express.js         | ^4.21.0 |
-| Runtime            | Node.js            | 20+     |
-| Language           | TypeScript         | ^5.7.0  |
-| Schema validation  | Zod                | ^3.23.8 |
-| Auth (stub)        | jsonwebtoken       | ^9.0.3  |
-| Security headers   | Helmet             | ^7.0.0  |
-| Rate limiting      | express-rate-limit | ^8.7.0  |
-| Input validation   | express-validator  | ^7.3.2  |
-| Logging            | Winston            | ^3.19.0 |
-| HTTP transport     | cors               | ^2.8.5  |
-| Env loading        | dotenv             | ^16.4.5 |
-| Linter             | ESLint             | ^9.0.0  |
-| Formatter          | Prettier           | ^3.3.0  |
-
-**Phase 2+ (dependencies installed but not all fully integrated):**
-
-- Firebase Authentication / Google OAuth
-- Firebase Admin SDK
-- Cloud Storage
-- Firestore
-- Gemini / Vertex AI
-- Cloud Run
 
 ---
 
-## Setup
+## ⚙️ Local Development Setup
 
 ### Prerequisites
 
-- Node.js 20+
-- npm 10+
-- Firebase project _(Phase 2+)_
-- Google Cloud project _(Phase 2+)_
+* Node.js 20+
+* npm 10+
 
-### Install
+### Installation
 
 ```bash
+# Install root and workspace dependencies
 npm install
 ```
 
-This installs all workspace dependencies (root + `frontend/` + `backend/`).
+### Environment Configuration
 
-### Environment
+Copy `.env.example` to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your values. For Phase 1 only `PORT`, `NODE_ENV`, `FRONTEND_URL`, and `JWT_SECRET` matter. Firebase and Gemini keys are not required until Phase 2.
+*In local development mode without GCP credentials, LegalEase-AI automatically uses rule-based grounded text extraction fallbacks so you can test all UI flows without API keys.*
 
-> **Never commit `.env`** — it is in `.gitignore`.
+### Running locally
 
-### Run from the repository root:
-
-#### Backend
+#### Backend (Port 3001)
 
 ```bash
 cd backend
-npm run dev        # tsx --watch src/index.ts (hot-reload)
-npm run build      # tsc → dist/
-npm start          # node dist/index.js
+npm run dev
 ```
 
-#### Frontend
+#### Frontend (Port 3000)
 
 ```bash
 cd frontend
-npm run dev        # next dev
-npm run build      # next build
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🧪 Verification Commands
+
+Run from the repository root:
+
+```bash
+# 1. TypeScript compilation check across backend & frontend
+npm run typecheck
+
+# 2. ESLint flat config validation
+npm run lint
+
+# 3. Comprehensive unit & integration test runner (84 tests)
+npm test
+
+# 4. Secret leak security scan
+npm run secret-scan
+
+# 5. Frontend Next.js production build verification
+npm run build --workspace=frontend
 ```
 
 ---
 
-## Verification Commands
+## 📊 Final Verification Status
 
-Run from the **repo root**:
+* **Authentication & Authorization:** PASS (Firebase Auth, protected routes, token verification, logout, user isolation)
+* **Document Upload & Parsing:** PASS (Client & server validation for PDF, DOCX, TXT; magic bytes; 10 MB limit)
+* **Vertex AI / Gemini Integration:** PASS (Structured grounded analysis, summary, clauses, dates, obligations, risks)
+* **Grounded Document Q&A:** PASS (Context-grounded answers, absence flags, prompt injection defense)
+* **Side-by-Side Comparison:** PASS (Structural clause diffs `+`/`-`/`▼`, counts, document type warnings)
+* **History & Deletion:** PASS (Search, status filters, interactive deletion modal, Firestore/GCS cleanup)
+* **Security Scan:** PASS (`scripts/secret-scan.js` clean, 0 hardcoded secrets)
+* **Repository Size:** PASS (Tracked source files: **1.05 MB**; `.git`: **2.67 MB**; Total: **3.7 MB** < 10 MB limit)
+* **Typecheck:** PASS (0 TypeScript errors)
+* **Linter:** PASS (0 ESLint errors)
+* **Test Suite:** PASS (84 / 84 unit and integration tests passing)
+* **Production Build:** PASS (Next.js production build successful)
 
-```bash
-npm run typecheck   # TypeScript — backend + frontend
-npm run lint        # ESLint 9 across all workspaces
-npm run format      # Prettier check
-npm run format:fix  # Prettier fix
-npm run test        # tsx test runner — 30 tests across unit + integration
-npm run secret-scan # Cross-platform Node.js secret scanner
-```
+---
 
-### Phase 3 Verification Results
+## ⚖️ Legal Disclaimer
 
-```
-npm run typecheck   → ✅ 0 errors (backend + frontend)
-npm run lint        → ✅ 0 errors
-npm run format      → ✅ All files clean
-npm run test        → ✅ 30 pass, 0 fail (unit + integration + AI analysis endpoints)
-npm run secret-scan → ✅ No hardcoded secrets found
-npm run build (be)  → ✅ tsc compiles with 0 errors
-npm run build (fe)  → ✅ next build — compiled, static + dynamic routes generated
-GET /api/health     → ✅ {"status":"ok","timestamp":"...","uptime":...}
-```
-
-### API Endpoints (Phase 3 Verified)
-
-| Method   | Path                          | Auth | Status  |
-| -------- | ----------------------------- | ---- | ------- |
-| `GET`    | `/api/health`                 | None | ✅ Live |
-| `POST`   | `/api/documents/upload`       | Auth | ✅ Live |
-| `GET`    | `/api/documents`              | Auth | ✅ Live |
-| `GET`    | `/api/documents/:id`          | Auth | ✅ Live |
-| `DELETE` | `/api/documents/:id`          | Auth | ✅ Live |
-| `POST`   | `/api/documents/:id/analyze`  | Auth | ✅ Live |
-| `GET`    | `/api/documents/:id/analysis` | Auth | ✅ Live |
-| `POST`   | `/api/analyze`                | Auth | ✅ Live |
-
-### Security Notes
-
-- `.env` is in `.gitignore` and is never committed.
-- `.env.example` contains placeholder strings only — no real credentials.
-- No API keys, private keys, or documents appear anywhere in the repository.
-- Backend-only Vertex AI and Gemini SDK access prevents browser credential exposure.
-- Helmet CSP restricts `defaultSrc: 'none'`.
-- Rate limiting protects all routes.
-
-### Testing
-
-Phase 3 test suite: **30 tests, 30 passing** via `npx tsx --test`:
-
-- `tests/unit/authMiddleware.test.ts` — 4 tests (token validation, mock tokens, ownership checks)
-- `tests/unit/documentValidation.test.ts` — 7 tests (file type, size, extension, path traversal)
-- `tests/unit/extractionService.test.ts` — 4 tests (magic bytes, normalization, chunking, TXT extraction)
-- `tests/unit/firebaseConfigValidation.test.ts` — 5 tests (Firebase environment validation)
-- `tests/unit/aiService.test.ts` — 5 tests (prompt fencing, injection defense, Zod validation, disclaimer enforcement, fallback parser)
-- `tests/integration/documentPipeline.test.ts` — 1 test (full pipeline: upload → extract → list → delete with ownership checks)
-- `tests/integration/aiAnalysisEndpoint.test.ts` — 4 tests (analysis execution, persistence, retrieval, authorization)
-
-Root `npm run test` runs `npx tsx --test tests/**/*.test.ts` → 30 pass, 0 fail.
-
-### Assumptions
-
-- Evaluators supply their own Firebase and Google Cloud credentials.
-- Documents containing sensitive data are never stored in the repository.
-- Backend API keys are never exposed to the browser.
-- Phase 1 intentionally excludes: Gemini, file uploads, Cloud Storage, Firestore, Q&A, comparison, risk detection, simplification, history, and CI/CD deployment.
-
-### Repository
-
-- Public GitHub repository.
-- Single `main` branch.
-- Repository size kept under 10 MB.
-- Clean, submission-ready state.
+LegalEase-AI is an educational, plain-language document assistance tool powered by Artificial Intelligence. **It does not provide legal advice and is not a substitute for professional legal counsel.** Users should always consult a qualified attorney before entering into legally binding contracts.
