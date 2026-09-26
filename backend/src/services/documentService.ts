@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'node:crypto';
 import { logger } from '../utils/logging';
 import { DocumentMetadata, ProcessingStatus } from '../types';
 import { SecurityValidationResult } from '../shared/types/document';
@@ -13,6 +13,11 @@ export class DocumentService {
   private extractionService: ExtractionService;
   private firestoreService: FirestoreService;
   private aiService: AIService;
+
+  // rules.md §19: document text is NEVER persisted to Firestore (metadata only).
+  // Extracted text lives in this process-memory map so analysis/QA/compare can
+  // reach it without leaking document contents into the database.
+  private extractedTextStore = new Map<string, string>();
 
   constructor(
     storageService = new StorageService(),
@@ -251,13 +256,21 @@ export class DocumentService {
       const extracted = await this.extractionService.extractText(buffer, metadata.contentType);
 
       // Step 5: Mark complete with metadata & chunks
-      const updatedMetadata = await this.firestoreService.updateDocument(documentId, {
+      // rules.md §19: store extracted text in-process memory, never in Firestore.
+      this.extractedTextStore.set(documentId, extracted.text);
+
+      const firestoreUpdates: Partial<ExtendedDocumentMetadata> = {
         processingStatus: ProcessingStatus.COMPLETE,
         pageCount: extracted.pageCount,
         wordCount: extracted.wordCount,
         chunksCount: extracted.chunks.length,
-        extractedText: extracted.text,
-      });
+        // extractedText omitted from Firestore to satisfy rules.md §19
+      };
+
+      const updatedMetadata = await this.firestoreService.updateDocument(documentId, firestoreUpdates);
+
+      // Merge in-memory extracted text so callers can use it without a separate DB read
+      updatedMetadata.extractedText = extracted.text;
 
       logger.info('Document extraction & processing completed successfully', {
         documentId,
@@ -316,6 +329,13 @@ export class DocumentService {
 
     if (doc.userId !== userId) {
       throw new Error('Access denied: ownership verification failed');
+    }
+
+    // rules.md §19: document text is never persisted to Firestore. Merge it
+    // from the in-memory store so analysis/QA/compare can access it.
+    const inMemoryText = this.extractedTextStore.get(documentId);
+    if (inMemoryText) {
+      doc.extractedText = inMemoryText;
     }
 
     return doc;

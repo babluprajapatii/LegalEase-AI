@@ -8,7 +8,7 @@ export interface ExtendedDocumentMetadata extends DocumentMetadata {
   pageCount?: number;
   wordCount?: number;
   chunksCount?: number;
-  extractedText?: string;
+  extractedText?: string; // Never persisted to Firestore per rules.md §19
   errorMessage?: string;
   updatedAt?: Date;
 }
@@ -79,12 +79,12 @@ export class FirestoreService {
     if (this.isFirestoreAvailable()) {
       try {
         const db = getFirestoreDb();
-        const firestoreRecord = {
-          ...record,
+        const { extractedText: _et, ...firestoreRecord } = record;
+        await db.collection('documents').doc(record.id).set({
+          ...firestoreRecord,
           uploadDate: record.uploadDate.toISOString(),
           updatedAt: (record.updatedAt || new Date()).toISOString(),
-        };
-        await db.collection('documents').doc(record.id).set(firestoreRecord);
+        });
         logger.info('Document metadata saved to Firestore', {
           documentId: record.id,
           userId: record.userId,
@@ -120,12 +120,10 @@ export class FirestoreService {
     if (this.isFirestoreAvailable()) {
       try {
         const db = getFirestoreDb();
-        const firestoreUpdates: Record<string, unknown> = {
-          ...updates,
-          updatedAt: updated.updatedAt?.toISOString(),
-        };
+        const { extractedText: _et, ...firestoreUpdates } = updates;
+        firestoreUpdates.updatedAt = updated.updatedAt;
         if (updates.uploadDate) {
-          firestoreUpdates.uploadDate = updates.uploadDate.toISOString();
+          firestoreUpdates.uploadDate = updates.uploadDate;
         }
         await db.collection('documents').doc(id).update(firestoreUpdates);
         logger.info('Document metadata updated in Firestore', {

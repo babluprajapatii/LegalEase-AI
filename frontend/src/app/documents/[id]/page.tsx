@@ -292,7 +292,21 @@ function AnalysisContent({ documentId }: { documentId: string }) {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Link
+                href={`/documents/${documentId}/next-steps`}
+                className="btn-secondary"
+                style={{ fontSize: '13px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                ✅ Next Steps
+              </Link>
+              <Link
+                href={`/compare?doc1=${documentId}`}
+                className="btn-secondary"
+                style={{ fontSize: '13px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                ⚡ Compare
+              </Link>
               <button
                 onClick={handleReanalyze}
                 disabled={analyzing}

@@ -44,6 +44,10 @@ function DocumentsContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterStatus>('all');
 
+  const [deleteDocTarget, setDeleteDocTarget] = useState<DocumentMetadata | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
   useEffect(() => {
     async function fetchDocuments() {
       if (!token) {
@@ -61,6 +65,24 @@ function DocumentsContent() {
     }
     fetchDocuments();
   }, [token]);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDocTarget || !token) return;
+    try {
+      setDeleting(true);
+      const { deleteDocument } = await import('../../lib/api-client');
+      await deleteDocument(token, deleteDocTarget.id);
+      setDocuments((prev) => prev.filter((d) => d.id !== deleteDocTarget.id));
+      setFeedback(`Successfully deleted "${deleteDocTarget.filename}".`);
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Failed to delete document: ${msg}`);
+    } finally {
+      setDeleting(false);
+      setDeleteDocTarget(null);
+    }
+  };
 
   const filteredDocs = documents.filter((doc) => {
     const matchesSearch = doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
@@ -97,7 +119,7 @@ function DocumentsContent() {
             <div>
               <h1 className="t-h1">All Documents</h1>
               <p className="t-body" style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                View and manage your analyzed legal documents.
+                View, filter, and manage your analyzed legal documents.
               </p>
             </div>
             <Link
@@ -120,6 +142,22 @@ function DocumentsContent() {
               <IconUpload size={18} /> Upload Document
             </Link>
           </div>
+
+          {feedback && (
+            <div
+              style={{
+                background: 'var(--color-success-bg, #e6f4ea)',
+                border: '1px solid var(--color-success, #34a853)',
+                color: 'var(--color-success, #1e8e3e)',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 14,
+                marginBottom: 16,
+              }}
+            >
+              {feedback}
+            </div>
+          )}
 
           {/* Search bar */}
           <div style={{ position: 'relative', maxWidth: 480, marginBottom: 16 }}>
@@ -297,31 +335,121 @@ function DocumentsContent() {
                     </div>
                   </div>
                   <StatusBadge status={doc.processingStatus} />
-                  <Link
-                    href={`/documents/${doc.id}`}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      height: 36,
-                      padding: '0 14px',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      border: '1px solid var(--color-border)',
-                      background: 'transparent',
-                      color: 'var(--color-primary)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    View <IconArrowRight size={16} />
-                  </Link>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Link
+                      href={`/documents/${doc.id}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        height: 36,
+                        padding: '0 14px',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid var(--color-border)',
+                        background: 'transparent',
+                        color: 'var(--color-primary)',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      View <IconArrowRight size={16} />
+                    </Link>
+                    <button
+                      onClick={() => setDeleteDocTarget(doc)}
+                      aria-label={`Delete ${doc.filename}`}
+                      style={{
+                        height: 36,
+                        padding: '0 12px',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        border: '1px solid var(--color-border)',
+                        background: 'transparent',
+                        color: 'var(--color-error, #ea4335)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {deleteDocTarget && (
+        <div
+          onClick={() => setDeleteDocTarget(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: 'var(--shadow-elevated)',
+              padding: 24,
+              width: '100%',
+              maxWidth: 480,
+            }}
+          >
+            <h2 className="t-h3" style={{ marginBottom: 12, color: 'var(--color-error, #ea4335)' }}>
+              Delete Document?
+            </h2>
+            <p className="t-body-sm" style={{ color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong>"{deleteDocTarget.filename}"</strong>? This will
+              permanently remove the file, grounded AI analysis, and Q&amp;A history. This action
+              cannot be undone.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
+              <button
+                disabled={deleting}
+                onClick={() => setDeleteDocTarget(null)}
+                style={{
+                  height: 36,
+                  padding: '0 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border)',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleting}
+                onClick={handleDeleteConfirm}
+                style={{
+                  height: 36,
+                  padding: '0 16px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-error, #ea4335)',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {deleting ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -225,3 +225,16 @@ export async function explainClause(
 
   return response.json();
 }
+
+export async function deleteDocument(token: string, documentId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/documents/${documentId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Could not delete document');
+  }
+}
+

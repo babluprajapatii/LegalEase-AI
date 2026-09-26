@@ -1,6 +1,6 @@
 import { VertexAI } from '@google-cloud/vertexai';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'node:crypto';
 import { env } from '../config/env';
 import { logger } from '../utils/logging';
 import {

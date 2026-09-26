@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../lib/auth-context';
@@ -12,6 +13,9 @@ import { IconCompare, IconSparkle, IconArrowRight } from '../../components/ui/Ic
 
 function CompareContent() {
   const { token } = useAuth();
+  const searchParams = useSearchParams();
+  const paramDoc1 = searchParams.get('doc1') || searchParams.get('documentId1');
+
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
 
@@ -31,12 +35,12 @@ function CompareContent() {
       try {
         const docs = await listDocuments(token);
         setDocuments(docs);
-        if (docs.length >= 2) {
-          setSelectedDocA(docs[0].id);
-          setSelectedDocB(docs[1].id);
-        } else if (docs.length === 1) {
-          setSelectedDocA(docs[0].id);
-        }
+
+        const initialDocA = paramDoc1 && docs.some((d) => d.id === paramDoc1) ? paramDoc1 : docs[0]?.id || '';
+        const initialDocB = docs.find((d) => d.id !== initialDocA)?.id || (docs.length > 1 ? docs[1].id : '');
+
+        setSelectedDocA(initialDocA);
+        setSelectedDocB(initialDocB);
       } catch (err) {
         console.error('Failed to fetch documents for comparison:', err);
       } finally {
@@ -44,7 +48,7 @@ function CompareContent() {
       }
     }
     fetchDocuments();
-  }, [token]);
+  }, [token, paramDoc1]);
 
   const handleRunComparison = async () => {
     if (!token || !selectedDocA || !selectedDocB) return;
@@ -463,7 +467,9 @@ function CompareContent() {
 export default function ComparePage() {
   return (
     <ProtectedRoute>
-      <CompareContent />
+      <Suspense fallback={<div className="empty-state">Loading Comparison Tool...</div>}>
+        <CompareContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }
