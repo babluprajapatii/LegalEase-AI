@@ -10,6 +10,7 @@ import {
   getUserToken,
 } from './firebase';
 import { User } from 'firebase/auth';
+import { upsertUser } from './api-client';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -94,16 +95,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
-// Helper function (since useAuth can't be called at top level)
-export async function upsertUser(token: string) {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to upsert user: ${response.statusText}`);
-  }
-  return response.json();
 }

@@ -50,7 +50,9 @@ function validateEnv() {
   }
 
   if (data.JWT_SECRET === 'dev-secret-change-in-production' && data.NODE_ENV === 'production') {
-    throw new Error('❌ Security Failure: JWT_SECRET must be explicitly configured in production environment.');
+    throw new Error(
+      '❌ Security Failure: JWT_SECRET must be explicitly configured in production environment.',
+    );
   }
 
   return data;

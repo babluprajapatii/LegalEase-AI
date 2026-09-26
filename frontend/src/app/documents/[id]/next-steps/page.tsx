@@ -85,7 +85,9 @@ function NextStepsContent({ documentId }: { documentId: string }) {
             <h2 style={{ marginTop: '16px', fontSize: '20px', fontWeight: 600 }}>
               Loading Actionable Next Steps...
             </h2>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', maxWidth: '400px' }}>
+            <p
+              style={{ color: 'var(--color-text-secondary)', fontSize: '14px', maxWidth: '400px' }}
+            >
               Preparing your personalized action checklist and legal consultation guide.
             </p>
           </div>
@@ -120,7 +122,13 @@ function NextStepsContent({ documentId }: { documentId: string }) {
             <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--color-error)' }}>
               Could Not Load Next Steps
             </h2>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+            <p
+              style={{
+                color: 'var(--color-text-secondary)',
+                fontSize: '14px',
+                marginBottom: '24px',
+              }}
+            >
               {error || 'Document analysis record not found'}
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -157,7 +165,8 @@ function NextStepsContent({ documentId }: { documentId: string }) {
 
   const totalChecklist = checklistItems.length;
   const completedCount = Object.values(completedItems).filter(Boolean).length;
-  const progressPercent = totalChecklist > 0 ? Math.round((completedCount / totalChecklist) * 100) : 0;
+  const progressPercent =
+    totalChecklist > 0 ? Math.round((completedCount / totalChecklist) * 100) : 0;
 
   // Build lawyer questions list combining guidance questions & risk questions
   const lawyerQuestions = [
@@ -173,7 +182,13 @@ function NextStepsContent({ documentId }: { documentId: string }) {
       <main className="authenticated-content" role="main">
         <div
           className="animate-page"
-          style={{ maxWidth: 'var(--container-max)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}
+          style={{
+            maxWidth: 'var(--container-max)',
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+          }}
         >
           {/* Header Navigation */}
           <div
@@ -188,7 +203,9 @@ function NextStepsContent({ documentId }: { documentId: string }) {
             }}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}
+              >
                 <Link
                   href={`/documents/${documentId}`}
                   style={{
@@ -204,7 +221,8 @@ function NextStepsContent({ documentId }: { documentId: string }) {
               </div>
               <h1 className="t-h1">Actionable Next Steps & Guidance</h1>
               <p className="t-body" style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                Review key action items, prepare attorney consultation questions, and track requirements.
+                Review key action items, prepare attorney consultation questions, and track
+                requirements.
               </p>
             </div>
 
@@ -298,7 +316,10 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                 <h2 className="t-h3" style={{ fontSize: 18 }}>
                   ✅ Action Items & Obligation Checklist
                 </h2>
-                <p className="t-body-sm" style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                <p
+                  className="t-body-sm"
+                  style={{ color: 'var(--color-text-secondary)', marginTop: 4 }}
+                >
                   Check off tasks as you complete or review them with your team.
                 </p>
               </div>
@@ -314,7 +335,10 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                   border: '1px solid var(--color-border)',
                 }}
               >
-                <span className="t-body-sm" style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                <span
+                  className="t-body-sm"
+                  style={{ fontWeight: 600, color: 'var(--color-primary)' }}
+                >
                   {completedCount} of {totalChecklist} completed
                 </span>
                 <div
@@ -375,7 +399,9 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                         style={{
                           fontSize: 14,
                           textDecoration: isChecked ? 'line-through' : 'none',
-                          color: isChecked ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                          color: isChecked
+                            ? 'var(--color-text-muted)'
+                            : 'var(--color-text-primary)',
                           lineHeight: 1.5,
                         }}
                       >
@@ -455,10 +481,16 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                 flexDirection: 'column',
               }}
             >
-              <h2 className="t-h3" style={{ fontSize: 17, marginBottom: 6, color: 'var(--color-warning)' }}>
+              <h2
+                className="t-h3"
+                style={{ fontSize: 17, marginBottom: 6, color: 'var(--color-warning)' }}
+              >
                 ⚖️ Questions for Your Attorney Consultation
               </h2>
-              <p className="t-body-sm" style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>
+              <p
+                className="t-body-sm"
+                style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}
+              >
                 Prepared questions based on highlighted document risks and clauses. Click to copy.
               </p>
 
@@ -476,7 +508,14 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                       gap: 8,
                     }}
                   >
-                    <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--color-text-primary)', margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        color: 'var(--color-text-primary)',
+                        margin: 0,
+                      }}
+                    >
                       "{question}"
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -491,7 +530,10 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                           fontSize: 12,
                           border: '1px solid var(--color-border)',
                           background: 'var(--color-surface)',
-                          color: copiedQuestion === question ? 'var(--color-success)' : 'var(--color-primary)',
+                          color:
+                            copiedQuestion === question
+                              ? 'var(--color-success)'
+                              : 'var(--color-primary)',
                           cursor: 'pointer',
                         }}
                       >
@@ -515,19 +557,35 @@ function NextStepsContent({ documentId }: { documentId: string }) {
                 flexDirection: 'column',
               }}
             >
-              <h2 className="t-h3" style={{ fontSize: 17, marginBottom: 6, color: 'var(--color-info)' }}>
+              <h2
+                className="t-h3"
+                style={{ fontSize: 17, marginBottom: 6, color: 'var(--color-info)' }}
+              >
                 📋 Information & Document Checklist
               </h2>
-              <p className="t-body-sm" style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>
+              <p
+                className="t-body-sm"
+                style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}
+              >
                 Gather these documents and clarifications before signing or negotiating.
               </p>
 
               {/* Clarifications for Counterparty */}
               <div style={{ marginBottom: 20 }}>
-                <h3 className="t-h4" style={{ fontSize: 14, marginBottom: 8, color: 'var(--color-text-primary)' }}>
+                <h3
+                  className="t-h4"
+                  style={{ fontSize: 14, marginBottom: 8, color: 'var(--color-text-primary)' }}
+                >
                   💬 Counterparty Clarifications
                 </h3>
-                <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                <ul
+                  style={{
+                    paddingLeft: 18,
+                    margin: 0,
+                    fontSize: 13,
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
                   {results.guidance.clarifications.map((item, idx) => (
                     <li key={idx} style={{ marginBottom: 6, lineHeight: 1.5 }}>
                       {item}
@@ -538,11 +596,28 @@ function NextStepsContent({ documentId }: { documentId: string }) {
 
               {/* Omitted / Missing Details */}
               {results.unpresentInformation && results.unpresentInformation.length > 0 && (
-                <div style={{ background: 'var(--color-warning-bg)', borderLeft: '4px solid var(--color-warning)', padding: 14, borderRadius: 'var(--radius-md)' }}>
-                  <h3 className="t-h4" style={{ fontSize: 14, marginBottom: 8, color: 'var(--color-warning)' }}>
+                <div
+                  style={{
+                    background: 'var(--color-warning-bg)',
+                    borderLeft: '4px solid var(--color-warning)',
+                    padding: 14,
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  <h3
+                    className="t-h4"
+                    style={{ fontSize: 14, marginBottom: 8, color: 'var(--color-warning)' }}
+                  >
                     🔍 Missing or Unspecified Information
                   </h3>
-                  <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, color: 'var(--color-text-primary)' }}>
+                  <ul
+                    style={{
+                      paddingLeft: 18,
+                      margin: 0,
+                      fontSize: 13,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
                     {results.unpresentInformation.map((item, idx) => (
                       <li key={idx} style={{ marginBottom: 6, lineHeight: 1.5 }}>
                         {item}
@@ -571,8 +646,12 @@ function NextStepsContent({ documentId }: { documentId: string }) {
           >
             <div>
               <h3 className="t-h4">Need to ask custom questions?</h3>
-              <p className="t-body-sm" style={{ color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                Use our Grounded Document Q&amp;A Assistant to ask specific questions about this document.
+              <p
+                className="t-body-sm"
+                style={{ color: 'var(--color-text-secondary)', marginTop: 2 }}
+              >
+                Use our Grounded Document Q&amp;A Assistant to ask specific questions about this
+                document.
               </p>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>

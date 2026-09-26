@@ -8,7 +8,7 @@ LegalEase-AI is a secure, backend-first GenAI web application built on Google Cl
 
 ## 🚀 Problem Statement
 
-Legal documents (leases, NDAs, employment agreements, vendor contracts) are dense, technical, and full of hidden liabilities. Non-lawyers struggle to understand their legal obligations, deadlines, and operational risks before signing. 
+Legal documents (leases, NDAs, employment agreements, vendor contracts) are dense, technical, and full of hidden liabilities. Non-lawyers struggle to understand their legal obligations, deadlines, and operational risks before signing.
 
 Existing consumer tools either lack strict grounding (leading to dangerous AI hallucinations) or fail to provide actionable follow-up guidance.
 
@@ -65,22 +65,22 @@ Existing consumer tools either lack strict grounding (leading to dangerous AI ha
 
 ### Google Cloud Services Used
 
-* **Google Cloud Vertex AI (Gemini 1.5 Pro):** Server-side grounded legal analysis, structured JSON extraction, and grounded document Q&A.
-* **Google Cloud Storage (GCS):** Direct-to-bucket signed upload flow and secure encrypted storage of original document files.
-* **Google Cloud Firestore:** User-scoped metadata, document records, structured analysis results, and comparison persistence.
-* **Firebase Authentication:** Google OAuth sign-in and JWT ID token generation/verification.
-* **Google Cloud Secret Manager:** Secure production credential management.
-* **Google Cloud Run:** Multi-stage container runtime for production backend deployment.
+- **Google Cloud Vertex AI (Gemini 1.5 Pro):** Server-side grounded legal analysis, structured JSON extraction, and grounded document Q&A.
+- **Google Cloud Storage (GCS):** Direct-to-bucket signed upload flow and secure encrypted storage of original document files.
+- **Google Cloud Firestore:** User-scoped metadata, document records, structured analysis results, and comparison persistence.
+- **Firebase Authentication:** Google OAuth sign-in and JWT ID token generation/verification.
+- **Google Cloud Secret Manager:** Secure production credential management.
+- **Google Cloud Run:** Multi-stage container runtime for production backend deployment.
 
 ---
 
 ## 🔒 Security & Safety Hardening
 
-* **No Browser Credentials:** Vertex AI and Firebase Admin SDK credentials operate strictly on the backend.
-* **Prompt Injection Defense:** Strict prompt isolation using `<document_content>` tags and system instruction boundaries.
-* **Secret Scanner:** Integrated Node.js secret scanner (`scripts/secret-scan.js`) prevents hardcoded secrets or API keys from entering source control.
-* **File Validation:** Client & server-side verification of magic-byte file headers, MIME types, and 10 MB size limits (PDF, DOCX, TXT).
-* **OWASP Protections:** Helmet CSP headers, CORS restriction, rate limiting (100 req / 15 min), and HTML input sanitization.
+- **No Browser Credentials:** Vertex AI and Firebase Admin SDK credentials operate strictly on the backend.
+- **Prompt Injection Defense:** Strict prompt isolation using `<document_content>` tags and system instruction boundaries.
+- **Secret Scanner:** Integrated Node.js secret scanner (`scripts/secret-scan.js`) prevents hardcoded secrets or API keys from entering source control.
+- **File Validation:** Client & server-side verification of magic-byte file headers, MIME types, and 10 MB size limits (PDF, DOCX, TXT).
+- **OWASP Protections:** Helmet CSP headers, CORS restriction, rate limiting (100 req / 15 min), and HTML input sanitization.
 
 ---
 
@@ -122,8 +122,8 @@ LegalEase-AI/
 
 ### Prerequisites
 
-* Node.js 20+
-* npm 10+
+- Node.js 20+
+- npm 10+
 
 ### Installation
 
@@ -140,7 +140,7 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-*In local development mode without GCP credentials, LegalEase-AI automatically uses rule-based grounded text extraction fallbacks so you can test all UI flows without API keys.*
+_In local development mode without GCP credentials, LegalEase-AI automatically uses rule-based grounded text extraction fallbacks so you can test all UI flows without API keys._
 
 ### Running locally
 
@@ -187,18 +187,18 @@ npm run build --workspace=frontend
 
 ## 📊 Final Verification Status
 
-* **Authentication & Authorization:** PASS (Firebase Auth, protected routes, token verification, logout, user isolation)
-* **Document Upload & Parsing:** PASS (Client & server validation for PDF, DOCX, TXT; magic bytes; 10 MB limit)
-* **Vertex AI / Gemini Integration:** PASS (Structured grounded analysis, summary, clauses, dates, obligations, risks)
-* **Grounded Document Q&A:** PASS (Context-grounded answers, absence flags, prompt injection defense)
-* **Side-by-Side Comparison:** PASS (Structural clause diffs `+`/`-`/`▼`, counts, document type warnings)
-* **History & Deletion:** PASS (Search, status filters, interactive deletion modal, Firestore/GCS cleanup)
-* **Security Scan:** PASS (`scripts/secret-scan.js` clean, 0 hardcoded secrets)
-* **Repository Size:** PASS (Tracked source files: **1.05 MB**; `.git`: **2.67 MB**; Total: **3.7 MB** < 10 MB limit)
-* **Typecheck:** PASS (0 TypeScript errors)
-* **Linter:** PASS (0 ESLint errors)
-* **Test Suite:** PASS (84 / 84 unit and integration tests passing)
-* **Production Build:** PASS (Next.js production build successful)
+- **Authentication & Authorization:** PASS (Firebase Auth, protected routes, token verification, logout, user isolation)
+- **Document Upload & Parsing:** PASS (Client & server validation for PDF, DOCX, TXT; magic bytes; 10 MB limit)
+- **Vertex AI / Gemini Integration:** PASS (Structured grounded analysis, summary, clauses, dates, obligations, risks)
+- **Grounded Document Q&A:** PASS (Context-grounded answers, absence flags, prompt injection defense)
+- **Side-by-Side Comparison:** PASS (Structural clause diffs `+`/`-`/`▼`, counts, document type warnings)
+- **History & Deletion:** PASS (Search, status filters, interactive deletion modal, Firestore/GCS cleanup)
+- **Security Scan:** PASS (`scripts/secret-scan.js` clean, 0 hardcoded secrets)
+- **Repository Size:** PASS (Tracked source files: **1.05 MB**; `.git`: **2.67 MB**; Total: **3.7 MB** < 10 MB limit)
+- **Typecheck:** PASS (0 TypeScript errors)
+- **Linter:** PASS (0 ESLint errors)
+- **Test Suite:** PASS (84 / 84 unit and integration tests passing)
+- **Production Build:** PASS (Next.js production build successful)
 
 ---
 

@@ -267,7 +267,10 @@ export class DocumentService {
         extractedText: extracted.text,
       };
 
-      const updatedMetadata = await this.firestoreService.updateDocument(documentId, firestoreUpdates);
+      const updatedMetadata = await this.firestoreService.updateDocument(
+        documentId,
+        firestoreUpdates,
+      );
 
       // Merge in-memory extracted text so callers can use it without a separate DB read
       updatedMetadata.extractedText = extracted.text;

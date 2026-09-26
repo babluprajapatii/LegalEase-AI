@@ -36,8 +36,10 @@ function CompareContent() {
         const docs = await listDocuments(token);
         setDocuments(docs);
 
-        const initialDocA = paramDoc1 && docs.some((d) => d.id === paramDoc1) ? paramDoc1 : docs[0]?.id || '';
-        const initialDocB = docs.find((d) => d.id !== initialDocA)?.id || (docs.length > 1 ? docs[1].id : '');
+        const initialDocA =
+          paramDoc1 && docs.some((d) => d.id === paramDoc1) ? paramDoc1 : docs[0]?.id || '';
+        const initialDocB =
+          docs.find((d) => d.id !== initialDocA)?.id || (docs.length > 1 ? docs[1].id : '');
 
         setSelectedDocA(initialDocA);
         setSelectedDocB(initialDocB);

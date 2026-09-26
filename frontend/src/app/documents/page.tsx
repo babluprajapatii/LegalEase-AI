@@ -410,10 +410,13 @@ function DocumentsContent() {
             <h2 className="t-h3" style={{ marginBottom: 12, color: 'var(--color-error, #ea4335)' }}>
               Delete Document?
             </h2>
-            <p className="t-body-sm" style={{ color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-              Are you sure you want to delete <strong>"{deleteDocTarget.filename}"</strong>? This will
-              permanently remove the file, grounded AI analysis, and Q&amp;A history. This action
-              cannot be undone.
+            <p
+              className="t-body-sm"
+              style={{ color: 'var(--color-text-secondary)', lineHeight: 1.5 }}
+            >
+              Are you sure you want to delete <strong>"{deleteDocTarget.filename}"</strong>? This
+              will permanently remove the file, grounded AI analysis, and Q&amp;A history. This
+              action cannot be undone.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
               <button

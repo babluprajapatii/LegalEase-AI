@@ -98,9 +98,16 @@ test('deploymentObservability - verifies no server private secrets exist in fron
   walk(frontendDir);
   for (const file of files) {
     const content = fs.readFileSync(file, 'utf-8');
-    assert.equal(content.includes('FIREBASE_PRIVATE_KEY'), false, `File ${file} contains FIREBASE_PRIVATE_KEY`);
-    assert.equal(content.includes('FIREBASE_CLIENT_EMAIL'), false, `File ${file} contains FIREBASE_CLIENT_EMAIL`);
+    assert.equal(
+      content.includes('FIREBASE_PRIVATE_KEY'),
+      false,
+      `File ${file} contains FIREBASE_PRIVATE_KEY`,
+    );
+    assert.equal(
+      content.includes('FIREBASE_CLIENT_EMAIL'),
+      false,
+      `File ${file} contains FIREBASE_CLIENT_EMAIL`,
+    );
     assert.equal(content.includes('JWT_SECRET'), false, `File ${file} contains JWT_SECRET`);
   }
 });
-

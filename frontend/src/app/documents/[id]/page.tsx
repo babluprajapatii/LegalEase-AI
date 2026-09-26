@@ -296,14 +296,26 @@ function AnalysisContent({ documentId }: { documentId: string }) {
               <Link
                 href={`/documents/${documentId}/next-steps`}
                 className="btn-secondary"
-                style={{ fontSize: '13px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                style={{
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
               >
                 ✅ Next Steps
               </Link>
               <Link
                 href={`/compare?doc1=${documentId}`}
                 className="btn-secondary"
-                style={{ fontSize: '13px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                style={{
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
               >
                 ⚡ Compare
               </Link>

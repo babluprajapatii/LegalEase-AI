@@ -79,11 +79,14 @@ export class FirestoreService {
     if (this.isFirestoreAvailable()) {
       try {
         const db = getFirestoreDb();
-        await db.collection('documents').doc(record.id).set({
-          ...record,
-          uploadDate: record.uploadDate.toISOString(),
-          updatedAt: (record.updatedAt || new Date()).toISOString(),
-        });
+        await db
+          .collection('documents')
+          .doc(record.id)
+          .set({
+            ...record,
+            uploadDate: record.uploadDate.toISOString(),
+            updatedAt: (record.updatedAt || new Date()).toISOString(),
+          });
         logger.info('Document metadata saved to Firestore', {
           documentId: record.id,
           userId: record.userId,
