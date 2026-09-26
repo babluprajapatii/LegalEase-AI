@@ -79,9 +79,8 @@ export class FirestoreService {
     if (this.isFirestoreAvailable()) {
       try {
         const db = getFirestoreDb();
-        const { extractedText: _et, ...firestoreRecord } = record;
         await db.collection('documents').doc(record.id).set({
-          ...firestoreRecord,
+          ...record,
           uploadDate: record.uploadDate.toISOString(),
           updatedAt: (record.updatedAt || new Date()).toISOString(),
         });
@@ -120,10 +119,10 @@ export class FirestoreService {
     if (this.isFirestoreAvailable()) {
       try {
         const db = getFirestoreDb();
-        const { extractedText: _et, ...firestoreUpdates } = updates;
-        firestoreUpdates.updatedAt = updated.updatedAt;
+        const firestoreUpdates: Record<string, any> = { ...updates };
+        firestoreUpdates.updatedAt = (updated.updatedAt || new Date()).toISOString();
         if (updates.uploadDate) {
-          firestoreUpdates.uploadDate = updates.uploadDate;
+          firestoreUpdates.uploadDate = updates.uploadDate.toISOString();
         }
         await db.collection('documents').doc(id).update(firestoreUpdates);
         logger.info('Document metadata updated in Firestore', {
@@ -150,7 +149,7 @@ export class FirestoreService {
         const doc = await db.collection('documents').doc(id).get();
         if (doc.exists) {
           const data = doc.data() as Record<string, any>;
-          return {
+          const record: ExtendedDocumentMetadata = {
             ...data,
             id: data.id || doc.id,
             userId: data.userId,
@@ -161,6 +160,10 @@ export class FirestoreService {
             uploadDate: new Date(data.uploadDate),
             updatedAt: data.updatedAt ? new Date(data.updatedAt) : undefined,
           };
+          if (!record.extractedText && this.inMemoryStore.has(id)) {
+            record.extractedText = this.inMemoryStore.get(id)?.extractedText;
+          }
+          return record;
         }
       } catch (error) {
         logger.warn('Firestore get document failed, falling back to in-memory store', { error });

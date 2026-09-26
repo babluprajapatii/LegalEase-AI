@@ -264,7 +264,7 @@ export class DocumentService {
         pageCount: extracted.pageCount,
         wordCount: extracted.wordCount,
         chunksCount: extracted.chunks.length,
-        // extractedText omitted from Firestore to satisfy rules.md §19
+        extractedText: extracted.text,
       };
 
       const updatedMetadata = await this.firestoreService.updateDocument(documentId, firestoreUpdates);

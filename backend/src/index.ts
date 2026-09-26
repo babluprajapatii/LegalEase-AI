@@ -27,9 +27,29 @@ app.use(
   }),
 );
 
+const allowedOrigins = (env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map((u) => u.trim().replace(/\/+$/, ''));
+
 app.use(
   cors({
-    origin: env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (such as mobile apps, curl, server-side fetch)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/+$/, '');
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        allowedOrigins.includes('*') ||
+        env.NODE_ENV !== 'production' ||
+        normalizedOrigin.startsWith('http://localhost')
+      ) {
+        return callback(null, true);
+      }
+
+      logger.warn(`CORS request rejected for origin: ${origin}`);
+      return callback(new Error(`CORS policy does not allow access from origin ${origin}`));
+    },
     credentials: true,
   }),
 );

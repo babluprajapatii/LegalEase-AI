@@ -1,4 +1,13 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+function getApiUrl(): string {
+  let url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+}
+
+export const API_URL = getApiUrl();
 
 export interface DocumentMetadata {
   id: string;

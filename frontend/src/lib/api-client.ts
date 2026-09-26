@@ -2,15 +2,64 @@
 
 import { API_URL, type DocumentMetadata, type ApiResponse } from './api';
 
+/**
+ * Helper wrapper for fetch that catches network-level failures ("TypeError: Failed to fetch")
+ * and converts them into clear, user-friendly error messages.
+ */
+async function safeFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(url, options);
+  } catch (err: unknown) {
+    if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+      throw new Error('Unable to reach the LegalEase-AI server. Please try again.');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Helper to parse response JSON and map HTTP status codes to clean user-friendly messages.
+ */
+async function handleResponse<T>(response: Response, fallbackErrorMsg: string): Promise<T> {
+  if (!response.ok) {
+    let serverMessage: string | undefined;
+    try {
+      const errorData = await response.json();
+      serverMessage = errorData.error || errorData.message;
+    } catch {
+      // Ignore JSON parse error if body is empty or non-JSON
+    }
+
+    if (serverMessage) {
+      throw new Error(serverMessage);
+    }
+
+    switch (response.status) {
+      case 401:
+        throw new Error('Your session has expired. Please sign in again.');
+      case 403:
+        throw new Error('You do not have permission to access this document.');
+      case 404:
+        throw new Error('Document not found.');
+      case 500:
+        throw new Error('Something went wrong while processing this request.');
+      default:
+        throw new Error(fallbackErrorMsg);
+    }
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function upsertUser(token: string) {
-  const response = await fetch(`${API_URL}/users/me`, {
+  const response = await safeFetch(`${API_URL}/users/me`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) {
-    throw new Error(`Failed to upsert user: ${response.statusText}`);
-  }
-  return response.json() as Promise<ApiResponse<{ uid: string; email?: string }>>;
+  return handleResponse<ApiResponse<{ uid: string; email?: string }>>(
+    response,
+    'Failed to update user profile',
+  );
 }
 
 export interface InitiateUploadResponse {
@@ -27,7 +76,7 @@ export async function initiateUpload(
   contentType: string,
   size: number,
 ): Promise<InitiateUploadResponse> {
-  const response = await fetch(`${API_URL}/documents/upload`, {
+  const response = await safeFetch(`${API_URL}/documents/upload`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -36,12 +85,10 @@ export async function initiateUpload(
     body: JSON.stringify({ filename, contentType, size }),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Could not initiate upload');
-  }
-
-  const data = (await response.json()) as ApiResponse<InitiateUploadResponse>;
+  const data = await handleResponse<ApiResponse<InitiateUploadResponse>>(
+    response,
+    'Could not initiate upload',
+  );
   if (!data.data) throw new Error('Invalid response from server');
   return data.data;
 }
@@ -51,7 +98,7 @@ export async function confirmUpload(
   documentId: string,
   fileData?: string,
 ): Promise<DocumentMetadata> {
-  const response = await fetch(`${API_URL}/documents/${documentId}/confirm`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}/confirm`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -60,27 +107,37 @@ export async function confirmUpload(
     body: JSON.stringify(fileData ? { fileData } : {}),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Document processing failed');
-  }
-
-  const data = (await response.json()) as ApiResponse<DocumentMetadata>;
+  const data = await handleResponse<ApiResponse<DocumentMetadata>>(
+    response,
+    'Document processing failed',
+  );
   if (!data.data) throw new Error('Invalid response from server');
   return data.data;
 }
 
 export async function listDocuments(token: string): Promise<DocumentMetadata[]> {
-  const response = await fetch(`${API_URL}/documents`, {
+  const response = await safeFetch(`${API_URL}/documents`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch documents');
-  }
-
-  const data = (await response.json()) as ApiResponse<DocumentMetadata[]>;
+  const data = await handleResponse<ApiResponse<DocumentMetadata[]>>(
+    response,
+    'Failed to fetch documents',
+  );
   return data.data || [];
+}
+
+export async function getDocument(token: string, documentId: string): Promise<DocumentMetadata> {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const data = await handleResponse<ApiResponse<DocumentMetadata>>(
+    response,
+    'Could not fetch document details',
+  );
+  if (!data.data) throw new Error('Document not found');
+  return data.data;
 }
 
 export type UploadProgressCallback = (loaded: number, total: number) => void;
@@ -115,34 +172,24 @@ export function uploadToStorage(
 }
 
 export async function analyzeDocument(token: string, documentId: string) {
-  const response = await fetch(`${API_URL}/documents/${documentId}/analyze`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}/analyze`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Analysis failed');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Analysis failed');
 }
 
 export async function getAnalysis(token: string, documentId: string) {
-  const response = await fetch(`${API_URL}/documents/${documentId}/analysis`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}/analysis`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Could not fetch analysis');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Could not fetch analysis');
 }
 
 export async function askQuestion(token: string, documentId: string, question: string) {
-  const response = await fetch(`${API_URL}/documents/${documentId}/qa`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}/qa`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -151,29 +198,19 @@ export async function askQuestion(token: string, documentId: string, question: s
     body: JSON.stringify({ question }),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Q&A request failed');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Q&A request failed');
 }
 
 export async function getQASessions(token: string, documentId: string) {
-  const response = await fetch(`${API_URL}/documents/${documentId}/qa`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}/qa`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Could not fetch Q&A history');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Could not fetch Q&A history');
 }
 
 export async function compareDocuments(token: string, documentId1: string, documentId2: string) {
-  const response = await fetch(`${API_URL}/documents/compare`, {
+  const response = await safeFetch(`${API_URL}/documents/compare`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -182,25 +219,15 @@ export async function compareDocuments(token: string, documentId1: string, docum
     body: JSON.stringify({ documentId1, documentId2 }),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Document comparison failed');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Document comparison failed');
 }
 
 export async function getComparisons(token: string) {
-  const response = await fetch(`${API_URL}/documents/comparisons`, {
+  const response = await safeFetch(`${API_URL}/documents/comparisons`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Could not fetch comparisons');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Could not fetch comparisons');
 }
 
 export async function explainClause(
@@ -209,7 +236,7 @@ export async function explainClause(
   clauseName: string,
   originalText?: string,
 ) {
-  const response = await fetch(`${API_URL}/documents/${documentId}/explain-clause`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}/explain-clause`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -218,23 +245,14 @@ export async function explainClause(
     body: JSON.stringify({ clauseName, originalText }),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Could not explain clause');
-  }
-
-  return response.json();
+  return handleResponse<any>(response, 'Could not explain clause');
 }
 
 export async function deleteDocument(token: string, documentId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/documents/${documentId}`, {
+  const response = await safeFetch(`${API_URL}/documents/${documentId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || 'Could not delete document');
-  }
+  await handleResponse<any>(response, 'Could not delete document');
 }
-
