@@ -12,7 +12,8 @@
     "format:fix": "prettier --write .",
     "test": "npx tsx --test tests/**/*.test.ts",
     "secret-scan": "node scripts/secret-scan.js",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "start": "npm --prefix backend start"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

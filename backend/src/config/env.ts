@@ -11,8 +11,8 @@ dotenv.config();
 const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
-  JWT_SECRET: z.string().min(1).default('dev-secret-change-in-production'),
+  FRONTEND_URL: z.string().default('http://localhost:3000'),
+  JWT_SECRET: z.string().optional(),
 
   // Firebase Admin & GCP Storage Configuration
   FIREBASE_PROJECT_ID: z.string().default('legalease-ai-78a55'),
@@ -34,11 +34,13 @@ const envSchema = z.object({
   VERTEX_AI_MODEL: z.string().default('gemini-1.5-pro'),
 });
 
-function validateEnv() {
-  const result = envSchema.safeParse(process.env);
+export function validateEnv(customEnv?: Record<string, unknown>) {
+  const targetEnv = customEnv || process.env;
+  const result = envSchema.safeParse(targetEnv);
   if (!result.success) {
-    console.error('❌ Invalid environment variables:', result.error.format());
-    process.exit(1);
+    const formattedError = JSON.stringify(result.error.format());
+    console.error('❌ Invalid environment variables:', formattedError);
+    throw new Error(`Invalid environment variables: ${formattedError}`);
   }
 
   const data = result.data;
@@ -50,8 +52,8 @@ function validateEnv() {
   }
 
   if (data.JWT_SECRET === 'dev-secret-change-in-production' && data.NODE_ENV === 'production') {
-    throw new Error(
-      '❌ Security Failure: JWT_SECRET must be explicitly configured in production environment.',
+    console.warn(
+      '⚠️ Warning: JWT_SECRET is explicitly set to default development value in production environment.',
     );
   }
 

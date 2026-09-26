@@ -15,7 +15,21 @@ const PATTERNS = [
   /password\s*[:=]\s*['"][^'"]+['"]/gi,
 ];
 
-const EXCLUDE_DIRS = new Set(['node_modules', '.next', 'dist', '.git', 'coverage', 'scripts']);
+const EXCLUDE_DIRS = new Set([
+  'node_modules',
+  '.next',
+  '.open-next',
+  'dist',
+  '.git',
+  'coverage',
+  'scripts',
+  '.planning',
+  '.gemini',
+  '.claude',
+  '.kilo',
+  'build',
+  'out',
+]);
 
 const INCLUDE_EXTENSIONS = new Set(['.ts', '.tsx', '.json', '.js', '.mjs']);
 
@@ -61,7 +75,7 @@ for (const file of files) {
       pattern.lastIndex = 0;
       if (pattern.test(line)) {
         const relPath = path.relative(root, file);
-        console.log(`⚠️  ${relPath}:${i + 1}: ${line.trim()}`);
+        console.log(`⚠️ MATCH FOUND in ${relPath}:${i + 1} -> ${line.substring(0, 80)}`);
         found = true;
       }
     }

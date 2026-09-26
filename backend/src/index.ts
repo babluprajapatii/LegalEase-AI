@@ -12,7 +12,8 @@ import { logger } from './utils/logging';
 dotenv.config();
 
 const app = express();
-const PORT = env.PORT;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : env.PORT;
+const HOST = '0.0.0.0';
 
 app.use(
   helmet({
@@ -64,8 +65,8 @@ app.use('/api', apiRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-const server = app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT} in ${env.NODE_ENV} mode`);
+const server = app.listen(PORT, HOST, () => {
+  logger.info(`Server running on http://${HOST}:${PORT} in ${env.NODE_ENV} mode`);
 });
 
 process.on('SIGTERM', () => {

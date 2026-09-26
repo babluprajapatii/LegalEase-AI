@@ -7,6 +7,18 @@ import { logger } from '../utils/logging';
 
 let firebaseApp: App;
 
+export function parsePrivateKey(rawKey?: string): string | undefined {
+  if (!rawKey) return undefined;
+  let key = rawKey.trim();
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1);
+  }
+  return key.replace(/\\n/g, '\n');
+}
+
 export function getFirebaseAdmin(): App {
   if (firebaseApp) {
     return firebaseApp;
@@ -25,11 +37,7 @@ export function getFirebaseAdmin(): App {
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
     'legalease-ai-78a55';
   const clientEmail = env.FIREBASE_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL;
-  let privateKey = env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY;
-
-  if (privateKey) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
-  }
+  const privateKey = parsePrivateKey(env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY);
 
   try {
     if (clientEmail && privateKey) {

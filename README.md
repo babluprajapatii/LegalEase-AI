@@ -1,8 +1,8 @@
 # LegalEase-AI — Plain-Language GenAI Legal Assistant
 
-> **PromptWars Submission — Legal Technology & Document Intelligence**
+> **Legal Technology & Document Intelligence Platform**
 
-LegalEase-AI is a secure, backend-first GenAI web application built on Google Cloud Platform and Vertex AI. It transforms complex, dense legal documents into plain-language executive summaries, structured key clauses, risk flags, actionable obligation checklists, grounded Q&A, and side-by-side document comparisons.
+LegalEase-AI is a secure, backend-first GenAI web application built on Google Cloud Platform, Vertex AI, Firebase Admin SDK, and Express.js. It transforms complex, dense legal documents into plain-language executive summaries, structured key clauses, risk flags, actionable obligation checklists, grounded Q&A, and side-by-side document comparisons.
 
 ---
 
@@ -47,36 +47,27 @@ Existing consumer tools either lack strict grounding (leading to dangerous AI ha
 
 ---
 
-## 🛠️ Architecture & Google Cloud Integration
+## 🛠️ Architecture & Technology Stack
 
 ```
-[ Frontend: Next.js 15 + React 19 + TypeScript ]
+[ Frontend: Next.js 15 + React 19 + TypeScript on Cloudflare Workers ]
                       │
            (Firebase Google Auth ID Token)
                       ▼
-[ Backend: Express.js (Node.js 20, Security Hardened) ]
-    ├── Authentication: Firebase Admin SDK
+[ Backend: Express.js (Node.js 20+, Security Hardened) on Render ]
+    ├── Authentication: Firebase Admin SDK (ID Token Verification)
     ├── Storage: Google Cloud Storage (User-scoped GCS Buckets)
     ├── Database: Google Cloud Firestore (Document & Analysis Records)
     ├── AI Orchestration: Google Cloud Vertex AI (Gemini 1.5 Pro)
-    ├── Secrets: Google Cloud Secret Manager
-    └── Container Deployment: Google Cloud Run (Docker multi-stage build)
+    └── Deployment: Render (Web Service)
 ```
-
-### Google Cloud Services Used
-
-- **Google Cloud Vertex AI (Gemini 1.5 Pro):** Server-side grounded legal analysis, structured JSON extraction, and grounded document Q&A.
-- **Google Cloud Storage (GCS):** Direct-to-bucket signed upload flow and secure encrypted storage of original document files.
-- **Google Cloud Firestore:** User-scoped metadata, document records, structured analysis results, and comparison persistence.
-- **Firebase Authentication:** Google OAuth sign-in and JWT ID token generation/verification.
-- **Google Cloud Secret Manager:** Secure production credential management.
-- **Google Cloud Run:** Multi-stage container runtime for production backend deployment.
 
 ---
 
 ## 🔒 Security & Safety Hardening
 
 - **No Browser Credentials:** Vertex AI and Firebase Admin SDK credentials operate strictly on the backend.
+- **Firebase Auth Scoping:** User authorization is verified server-side using Firebase ID tokens (`verifyIdToken`).
 - **Prompt Injection Defense:** Strict prompt isolation using `<document_content>` tags and system instruction boundaries.
 - **Secret Scanner:** Integrated Node.js secret scanner (`scripts/secret-scan.js`) prevents hardcoded secrets or API keys from entering source control.
 - **File Validation:** Client & server-side verification of magic-byte file headers, MIME types, and 10 MB size limits (PDF, DOCX, TXT).
@@ -90,29 +81,27 @@ Existing consumer tools either lack strict grounding (leading to dangerous AI ha
 LegalEase-AI/
 ├── backend/                  # Express.js backend API & Vertex AI orchestration
 │   ├── src/
-│   │   ├── config/           # Zod environment schemas & Secret Manager
+│   │   ├── config/           # Zod environment schemas & Firebase Admin init
 │   │   ├── handlers/         # Express route handlers
 │   │   ├── middleware/       # Auth, RateLimit, Helmet, Error handling
 │   │   ├── services/         # AI Service, Document Service, Q&A, Comparison
 │   │   └── shared/types/     # TypeScript domain types & Zod schemas
-│   ├── Dockerfile            # Cloud Run multi-stage Docker build
+│   ├── tsconfig.json
 │   └── package.json
 ├── frontend/                 # Next.js 15 App Router frontend
 │   ├── src/
 │   │   ├── app/              # Routes (/dashboard, /documents, /compare, /history, /settings)
 │   │   ├── components/       # Design System UI components & Sidebar
 │   │   └── lib/              # Firebase auth & API client
-│   ├── Dockerfile            # Cloud Run frontend container build
 │   └── package.json
-├── shared/                   # Shared cross-package TypeScript types
 ├── tests/                    # Unit & Integration test suite
-│   ├── unit/                 # 19 unit test modules (AI safety, extraction, Q&A, etc.)
+│   ├── unit/                 # 21 unit test modules
 │   └── integration/          # 2 end-to-end integration pipeline tests
 ├── scripts/
 │   └── secret-scan.js        # Automated secret scanner
 ├── firestore.rules           # Production Firestore security rules
 ├── storage.rules             # Production Cloud Storage security rules
-├── .env.example              # Placeholder-only environment variable template
+├── package.json              # Root workspace package.json
 └── README.md
 ```
 
@@ -140,65 +129,131 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-_In local development mode without GCP credentials, LegalEase-AI automatically uses rule-based grounded text extraction fallbacks so you can test all UI flows without API keys._
+### Running Locally
 
-### Running locally
-
-#### Backend (Port 3001)
+#### Full Stack (Backend + Frontend)
 
 ```bash
-cd backend
-npm run dev
+# Run backend development server (Port 3001)
+npm --prefix backend run dev
+
+# Run frontend development server (Port 3000)
+npm --prefix frontend run dev
 ```
-
-#### Frontend (Port 3000)
-
-```bash
-cd frontend
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🧪 Verification Commands
+## 🧪 Build & Test Commands
 
 Run from the repository root:
 
 ```bash
-# 1. TypeScript compilation check across backend & frontend
+# 1. TypeScript typecheck across backend and frontend
 npm run typecheck
 
-# 2. ESLint flat config validation
-npm run lint
-
-# 3. Comprehensive unit & integration test runner (84 tests)
+# 2. Comprehensive unit & integration test runner
 npm test
 
-# 4. Secret leak security scan
+# 3. Backend workspace tests
+npm test --workspace=backend
+
+# 4. Automated secret leak scan
 npm run secret-scan
 
-# 5. Frontend Next.js production build verification
-npm run build --workspace=frontend
+# 5. Production build
+npm run build
 ```
 
 ---
 
-## 📊 Final Verification Status
+## 🌐 Render Deployment Instructions
 
-- **Authentication & Authorization:** PASS (Firebase Auth, protected routes, token verification, logout, user isolation)
-- **Document Upload & Parsing:** PASS (Client & server validation for PDF, DOCX, TXT; magic bytes; 10 MB limit)
-- **Vertex AI / Gemini Integration:** PASS (Structured grounded analysis, summary, clauses, dates, obligations, risks)
-- **Grounded Document Q&A:** PASS (Context-grounded answers, absence flags, prompt injection defense)
-- **Side-by-Side Comparison:** PASS (Structural clause diffs `+`/`-`/`▼`, counts, document type warnings)
-- **History & Deletion:** PASS (Search, status filters, interactive deletion modal, Firestore/GCS cleanup)
-- **Security Scan:** PASS (`scripts/secret-scan.js` clean, 0 hardcoded secrets)
-- **Repository Size:** PASS (Tracked source files: **1.05 MB**; `.git`: **2.67 MB**; Total: **3.7 MB** < 10 MB limit)
-- **Typecheck:** PASS (0 TypeScript errors)
-- **Linter:** PASS (0 ESLint errors)
-- **Test Suite:** PASS (84 / 84 unit and integration tests passing)
-- **Production Build:** PASS (Next.js production build successful)
+LegalEase-AI backend is designed for automated deployment on **Render** (Web Service).
+
+### Render Service Settings
+
+- **Environment:** `Node`
+- **Build Command:**
+  ```bash
+  npm install --include=dev && npm run build
+  ```
+- **Start Command:**
+  ```bash
+  npm start
+  ```
+  *(or `node backend/dist/index.js` if deploying with Root Directory set to `backend`)*
+
+---
+
+## 🔑 Environment Variables Breakdown
+
+Configure the following environment variables in your Render Dashboard under **Environment**:
+
+### Required Production Variables
+
+| Variable Name | Description | Example / Notes |
+|---|---|---|
+| `FIREBASE_PROJECT_ID` | GCP / Firebase Project ID | `legalease-ai-78a55` |
+| `FIREBASE_CLIENT_EMAIL` | Firebase Admin Service Account Email | `firebase-adminsdk-xxxxx@legalease-ai-78a55.iam.gserviceaccount.com` |
+| `FIREBASE_PRIVATE_KEY` | Firebase Admin Service Account Private Key | `-----BEGIN PRIVATE KEY-----\nMIIEvgI...\n-----END PRIVATE KEY-----` |
+| `GCS_BUCKET_NAME` | Google Cloud Storage Bucket Name | `legalease-ai-78a55.firebasestorage.app` |
+| `GCP_PROJECT_ID` | GCP Project ID for Vertex AI | `legalease-ai-78a55` |
+| `GCP_LOCATION` | Vertex AI Region | `us-central1` |
+| `VERTEX_AI_MODEL` | Gemini Model Identifier | `gemini-1.5-pro` |
+
+### Optional / Configurable Variables
+
+| Variable Name | Default Value | Description |
+|---|---|---|
+| `PORT` | `3001` *(Assigned dynamically by Render)* | Express server port |
+| `NODE_ENV` | `production` | Environment mode (`development`, `production`, `test`) |
+| `FRONTEND_URL` | `http://localhost:3000` | Allowed CORS origin(s). Supports comma-separated strings for multiple domains (e.g. `https://legalease-ai.pages.dev,https://app.legalease.ai`) |
+| `JWT_SECRET` | *(Optional)* | Legacy secret; authentication uses Firebase ID tokens |
+
+---
+
+## 🩺 Health Check Endpoint
+
+The backend includes an unauthenticated health check endpoint for uptime monitoring and Render zero-downtime health probes:
+
+- **Endpoint:** `GET /api/health`
+- **Expected Status:** `HTTP 200 OK`
+- **Sample Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-09-26T11:51:49.898Z",
+  "uptimeSeconds": 120,
+  "environment": "production",
+  "version": "1.0.0",
+  "services": {
+    "firebaseAuth": "connected",
+    "firestore": "connected",
+    "cloudStorage": "connected",
+    "vertexAI": "connected"
+  }
+}
+```
+
+---
+
+## 🛠️ Common Deployment Errors & Solutions
+
+1. **`JWT_SECRET must be explicitly configured in production environment`**
+   - *Cause:* Legacy validation error in Phase 1 before Firebase Auth was adopted.
+   - *Fix:* Resolved. `JWT_SECRET` is now optional; authentication relies strictly on Firebase Admin SDK ID tokens (`verifyIdToken`).
+
+2. **Firebase Private Key Formatting Issues**
+   - *Cause:* Escaped newline strings (`\n`) or surrounding double quotes in Render environment variables causing RSA key parse failures.
+   - *Fix:* `parsePrivateKey()` automatically strips quotes and converts `\n` literals into real newlines.
+
+3. **CORS Policy Rejection for Deployed Frontend**
+   - *Cause:* `FRONTEND_URL` not configured with Cloudflare Workers / Pages URL.
+   - *Fix:* Set `FRONTEND_URL` in Render to match your exact Cloudflare frontend origin (e.g. `https://legalease-ai.pages.dev`).
+
+4. **Port Binding Failures**
+   - *Cause:* Binding strictly to `127.0.0.1` / `localhost` instead of container host interfaces.
+   - *Fix:* Express server explicitly binds to `0.0.0.0` and reads `process.env.PORT`.
 
 ---
 
