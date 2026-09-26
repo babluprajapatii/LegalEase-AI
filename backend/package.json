@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "test": "tsx --test src/**/*.test.ts",
-    "prepare": "npm run lint && npm run typecheck && npm run format"
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.2.0",
